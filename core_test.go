@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// Helper functions
 func StrsEquals(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
@@ -16,36 +17,59 @@ func StrsEquals(a, b []string) bool {
 	return true
 }
 
+type TestCase struct {
+	inputArgs []string
+	b         Build // Resulting build object
+}
+
 func TestParseArgs(t *testing.T) {
-	args := []string{"-c", "data/main.c", "-o", "main.o"}
-
-	b := ParseArgs(args)
-
-	// Make sure the args match
-	if !StrsEquals(args, b.Args) {
-		t.Errorf("Args are wrong")
+	// Note args is left out of the Build struct because it supplied separately
+	testData := []TestCase{
+		TestCase{
+			inputArgs: []string{"-c", "data/main.c", "-o", "main.o"},
+			b: Build{
+				Output:      "main.o",
+				Oindex:      3,
+				Iindex:      1,
+				Cindex:      0,
+				LinkCommand: false,
+			},
+		},
 	}
 
-	// Make sure we parsed the output properly
-	if "main.o" != b.Output {
-		t.Errorf("Output path wrong")
-	}
+	// Check each test case
+	for _, tc := range testData {
+		args := tc.inputArgs
+		eb := tc.b
 
-	if 3 != b.Oindex {
-		t.Errorf("Output index wrong")
-	}
+		b := ParseArgs(args)
 
-	// Now lets do the input
-	if 1 != b.Iindex {
-		t.Errorf("Input index wrong")
-	}
+		// Make sure the args match
+		if !StrsEquals(args, b.Args) {
+			t.Errorf("Args are wrong")
+		}
 
-	if "data/main.c" != b.Args[b.Iindex] {
-		t.Errorf("Input path wrong")
-	}
+		// Make sure we parsed the output properly
+		if eb.Output != b.Output {
+			t.Errorf("Output path wrong")
+		}
 
-	// Now lets test the link command is properly recognized
-	if b.LinkCommand {
-		t.Errorf("Should not be b a link command")
+		if eb.Oindex != b.Oindex {
+			t.Errorf("Output index wrong")
+		}
+
+		// Now lets do the input
+		if eb.Iindex != b.Iindex {
+			t.Errorf("Input index wrong")
+		}
+
+		if "data/main.c" != b.Args[b.Iindex] {
+			t.Errorf("Input path wrong")
+		}
+
+		// Now lets test the link command is properly recognized
+		if eb.LinkCommand != b.LinkCommand {
+			t.Errorf("Should not be b a link command")
+		}
 	}
 }
