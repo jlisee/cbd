@@ -11,11 +11,49 @@ import (
 )
 
 type Build struct {
-	Args   []string // Command line arguments
-	Oindex int // Index of output file
-	Iindex int // Index of input file
-	Cindex int // Index of "type" flag
+	Args        []string // Command line arguments
+	Output      string   // Output argument
+	Oindex      int      // Index of argument *before* the output file
+	Iindex      int      // Index of input file option
+	Cindex      int      // Index of "type" flag
+	LinkCommand bool
 	// TODO: file type
+}
+
+func ParseArgs(args []string) Build {
+	nolink := false
+
+	var output string
+	var outputIndex int
+	var inputIndex int
+	var cmdIndex int
+
+	for i, arg := range args {
+		//idx := i + 1
+		if arg == "-c" {
+			nolink = true
+			cmdIndex = i
+		}
+		if arg == "-o" {
+			outputIndex = i + 1
+			output = args[outputIndex]
+		} else if (arg[0] != '-') && (outputIndex != i) {
+			// For now assume any non flag argument, not the -o target
+			// is our Build flag
+			inputIndex = i
+		}
+	}
+
+	b := Build{
+		Args:        args,
+		Output:      output,
+		Oindex:      outputIndex,
+		Iindex:      inputIndex,
+		Cindex:      cmdIndex,
+		LinkCommand: !nolink,
+	}
+
+	return b
 }
 
 // Build the file at the temporary location, you must clean up the returned
@@ -60,13 +98,13 @@ func Compile(b Build, input string) (string, error) {
 
 	// Update the arguments to point the output path to the temp directory and
 	// the input path from the given location
-	gccArgs := make([]string, len(b.Args) + 2)
+	gccArgs := make([]string, len(b.Args)+2)
 	copy(gccArgs[2:], b.Args)
 
-	gccArgs[b.Oindex + 2] = tempPath
+	gccArgs[b.Oindex+2] = tempPath
 
 	if len(input) > 0 {
-		gccArgs[b.Iindex + 2] = input
+		gccArgs[b.Iindex+2] = input
 	}
 
 	// We need to manual specify the language because are temp
@@ -112,7 +150,7 @@ func Copyfile(dst, src string) error {
 // ignored)
 func RunCmd(prog string, args []string) error {
 	fmt.Printf("Run: %s ", prog)
-	for _, arg := range(args) {
+	for _, arg := range args {
 		fmt.Printf("%s ", arg)
 	}
 	fmt.Println()

@@ -4,7 +4,14 @@
 set -e
 
 # Clean up initial files
-rm -f test-main main.o cbuildd
+function clean() {
+    rm -f test-main main.o cbuildd cbuildd.test
+}
+
+clean
+
+# Run tests
+go test
 
 # Build everything
 go install
@@ -19,4 +26,4 @@ cbdcc main.o -o test-main
 ./test-main
 
 # Clean up
-rm -f test-main main.o
+clean
