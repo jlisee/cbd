@@ -7,11 +7,13 @@ set -e
 rm -f test-main main.o cbuildd
 
 # Build everything
-go build
+go install
+go build cmds/cbdcc.go
+mv cbdcc $GOPATH/bin
 
 # The compile the program
-./cbuildd -c data/main.c -o main.o
-./cbuildd main.o -o test-main
+cbdcc -c data/main.c -o main.o
+cbdcc main.o -o test-main
 
 # Maybe we should test the output somehow
 ./test-main
