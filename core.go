@@ -15,7 +15,6 @@ import (
 
 type Build struct {
 	Args        []string // Command line arguments
-	Output      string   // Output argument
 	Oindex      int      // Index of argument *before* the output file
 	Iindex      int      // Index of input file option
 	Cindex      int      // Index of "type" flag
@@ -23,10 +22,14 @@ type Build struct {
 	// TODO: file type
 }
 
+// Returns the output path build job
+func (b Build) Output() string {
+	return b.Args[b.Oindex]
+}
+
 func ParseArgs(args []string) Build {
 	nolink := false
 
-	var output string
 	var outputIndex int
 	var inputIndex int
 	var cmdIndex int
@@ -39,7 +42,6 @@ func ParseArgs(args []string) Build {
 		}
 		if arg == "-o" {
 			outputIndex = i + 1
-			output = args[outputIndex]
 		} else if (arg[0] != '-') && (outputIndex != i) {
 			// For now assume any non flag argument, not the -o target
 			// is our Build flag
@@ -49,7 +51,6 @@ func ParseArgs(args []string) Build {
 
 	b := Build{
 		Args:        args,
-		Output:      output,
 		Oindex:      outputIndex,
 		Iindex:      inputIndex,
 		Cindex:      cmdIndex,
@@ -63,7 +64,7 @@ func ParseArgs(args []string) Build {
 // file.
 func Preprocess(compiler string, b Build) (string, error) {
 	// Get the extension of the output file
-	ext := filepath.Ext(b.Output)
+	ext := filepath.Ext(b.Output())
 
 	// Lets create a temporary file
 	tempFile, err := TempFile("", "cbuildd-comp-", ext)
@@ -95,7 +96,7 @@ func Preprocess(compiler string, b Build) (string, error) {
 // file.
 func Compile(compiler string, b Build, input string) (string, error) {
 	// Get the extension of the output file
-	ext := filepath.Ext(b.Output)
+	ext := filepath.Ext(b.Output())
 
 	// Lets create a temporary file
 	tempFile, err := TempFile("", "cbuildd-comp-", ext)

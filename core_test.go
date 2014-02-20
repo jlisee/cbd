@@ -20,18 +20,17 @@ func StrsEquals(a, b []string) bool {
 	return true
 }
 
-type TestCase struct {
+type ParseTestCase struct {
 	inputArgs []string
 	b         Build // Resulting build object
 }
 
 func TestParseArgs(t *testing.T) {
 	// Note args is left out of the Build struct because it supplied separately
-	testData := []TestCase{
-		TestCase{
+	testData := []ParseTestCase{
+		ParseTestCase{
 			inputArgs: []string{"-c", "data/main.c", "-o", "main.o"},
 			b: Build{
-				Output:      "main.o",
 				Oindex:      3,
 				Iindex:      1,
 				Cindex:      0,
@@ -42,8 +41,10 @@ func TestParseArgs(t *testing.T) {
 
 	// Check each test case
 	for _, tc := range testData {
+		// Make sure to set the args for the test case
 		args := tc.inputArgs
 		eb := tc.b
+		eb.Args = args
 
 		b := ParseArgs(args)
 
@@ -53,7 +54,7 @@ func TestParseArgs(t *testing.T) {
 		}
 
 		// Make sure we parsed the output properly
-		if eb.Output != b.Output {
+		if eb.Output() != b.Output() {
 			t.Errorf("Output path wrong")
 		}
 

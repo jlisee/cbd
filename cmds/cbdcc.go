@@ -48,10 +48,10 @@ func main() {
 		}
 
 		// Copy the file to the resulting location
-		err = os.Rename(tempOutput, b.Output)
+		err = os.Rename(tempOutput, b.Output())
 		if err != nil {
 			// Can't use the efficient rename, so lets us the copy
-			err = cbuildd.Copyfile(b.Output, tempOutput)
+			err = cbuildd.Copyfile(b.Output(), tempOutput)
 		}
 
 		if err != nil {
