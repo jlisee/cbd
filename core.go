@@ -61,7 +61,7 @@ func ParseArgs(args []string) Build {
 
 // Build the file at the temporary location, you must clean up the returned
 // file.
-func Preprocess(b Build) (string, error) {
+func Preprocess(compiler string, b Build) (string, error) {
 	// Get the extension of the output file
 	ext := filepath.Ext(b.Output)
 
@@ -82,7 +82,7 @@ func Preprocess(b Build) (string, error) {
 	gccArgs[b.Cindex] = "-E"
 
 	// Run gcc with the rest of our args
-	err = RunCmd("gcc", gccArgs)
+	err = RunCmd(compiler, gccArgs)
 
 	if err != nil {
 		return "", err
@@ -93,7 +93,7 @@ func Preprocess(b Build) (string, error) {
 
 // Build the file at the temporary location, you must clean up the returned
 // file.
-func Compile(b Build, input string) (string, error) {
+func Compile(compiler string, b Build, input string) (string, error) {
 	// Get the extension of the output file
 	ext := filepath.Ext(b.Output)
 
@@ -107,23 +107,15 @@ func Compile(b Build, input string) (string, error) {
 
 	// Update the arguments to point the output path to the temp directory and
 	// the input path from the given location
-	gccArgs := make([]string, len(b.Args)+2)
-	copy(gccArgs[2:], b.Args)
+	gccArgs := make([]string, len(b.Args))
 
-	gccArgs[b.Oindex+2] = tempPath
+	copy(gccArgs, b.Args)
 
-	if len(input) > 0 {
-		gccArgs[b.Iindex+2] = input
-	}
-
-	// We need to manual specify the language because are temp
-	// file doesn't have the proper extension (TODO: don't assume c)
-	gccArgs[0] = "-x"
-	gccArgs[1] = "c"
+	gccArgs[b.Oindex] = tempPath
 
 	// Run gcc with the rest of our args
 	// TODO: always include error output no matter what, needed for debugging
-	err = RunCmd("gcc", gccArgs)
+	err = RunCmd(compiler, gccArgs)
 
 	if err != nil {
 		return "", err

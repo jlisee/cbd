@@ -19,8 +19,8 @@ go build cmds/cbdcc.go
 mv cbdcc $GOPATH/bin
 
 # The compile the program
-cbdcc -c data/main.c -o main.o
-cbdcc main.o -o test-main
+cbdcc gcc -c data/main.c -o main.o
+cbdcc gcc main.o -o test-main
 
 # Maybe we should test the output somehow
 ./test-main
