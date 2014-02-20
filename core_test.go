@@ -2,6 +2,9 @@ package cbuildd
 
 import (
 	"testing"
+	"os"
+	"strings"
+	"path/filepath"
 )
 
 // Helper functions
@@ -71,5 +74,29 @@ func TestParseArgs(t *testing.T) {
 		if eb.LinkCommand != b.LinkCommand {
 			t.Errorf("Should not be b a link command")
 		}
+	}
+}
+
+func TestTempFile(t *testing.T) {
+	f, err := TempFile("", "cbd-test-", ".test")
+
+	if err != nil {
+		t.Errorf("Error:", err)
+	}
+
+	name := f.Name()
+
+	defer os.Remove(name)
+
+	// Now lets check the file
+	prefix := filepath.Join(os.TempDir(), "cbd-test-")
+	suffix := ".test"
+
+	if !strings.HasPrefix(name, prefix) {
+		t.Errorf("Error '%s' does not have prefix: '%s'", name, prefix)
+	}
+
+	if !strings.HasSuffix(name, suffix) {
+		t.Errorf("Error '%s' does not have suffix: '%s'", name, suffix)
 	}
 }

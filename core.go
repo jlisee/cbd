@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
+	"math/big"
+	"crypto/rand"
+	"encoding/hex"
+	"path/filepath"
 )
 
 type Build struct {
@@ -59,8 +62,11 @@ func ParseArgs(args []string) Build {
 // Build the file at the temporary location, you must clean up the returned
 // file.
 func Preprocess(b Build) (string, error) {
+	// Get the extension of the output file
+	ext := filepath.Ext(b.Output)
+
 	// Lets create a temporary file
-	tempFile, err := ioutil.TempFile(os.TempDir(), "cbuildd-pre-")
+	tempFile, err := TempFile("", "cbuildd-comp-", ext)
 	tempPath := tempFile.Name()
 
 	if err != nil {
@@ -88,8 +94,11 @@ func Preprocess(b Build) (string, error) {
 // Build the file at the temporary location, you must clean up the returned
 // file.
 func Compile(b Build, input string) (string, error) {
+	// Get the extension of the output file
+	ext := filepath.Ext(b.Output)
+
 	// Lets create a temporary file
-	tempFile, err := ioutil.TempFile(os.TempDir(), "cbuildd-comp-")
+	tempFile, err := TempFile("", "cbuildd-comp-", ext)
 	tempPath := tempFile.Name()
 
 	if err != nil {
@@ -170,4 +179,41 @@ func RunCmd(prog string, args []string) error {
 	}
 
 	return nil
+}
+
+// Generates and opens a temporary file with a defined prefix and suffix
+// This is the same api as ioutil.TempFile accept it accepts a suffix
+//  TODO: see if this is too slow
+func TempFile(dir, prefix string, suffix string) (f *os.File, err error) {
+	if dir == "" {
+		dir = os.TempDir()
+	}
+
+	// The maximum size of random file count
+	// TODO: see if we can do this at package scope somehow
+	var maxRand *big.Int = big.NewInt(0)
+	maxRand.SetString("FFFFFFFFFFFFFFFF", 16)
+
+	var randNum *big.Int
+
+	for i := 0; i < 10000; i++ {
+		// Generate random part of the path name
+		randNum, err = rand.Int(rand.Reader, maxRand)
+
+		if err != nil {
+			return
+		}
+
+		// Transform to an int
+		randString := hex.EncodeToString(randNum.Bytes())
+
+		// Attempt to open file and fail if it already exists
+		name := filepath.Join(dir, prefix + randString + suffix)
+		f, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+		if os.IsExist(err) {
+			continue
+		}
+		break
+	}
+	return
 }
