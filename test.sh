@@ -16,7 +16,8 @@ go test
 # Build everything
 go install
 go build cmds/cbdcc.go
-mv cbdcc $GOPATH/bin
+go build cmds/cbd.go
+mv cbdcc cbd $GOPATH/bin
 
 # The compile the program
 cbdcc gcc -c data/main.c -o main.o
@@ -26,4 +27,17 @@ cbdcc gcc main.o -o test-main
 ./test-main
 
 # Clean up
+clean
+
+# Now lets do it again over the network
+cbd &
+d_pid=$!
+trap "kill -9 ${d_pid}" EXIT
+
+CBD_POTENTIAL_HOST="localhost"
+
+cbdcc gcc -c data/main.c -o main.o
+cbdcc gcc main.o -o test-main
+./test-main
+
 clean

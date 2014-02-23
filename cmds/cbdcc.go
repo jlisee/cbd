@@ -1,11 +1,14 @@
 package main
 
 import (
+	"encoding/gob"
 	"fmt"
 	"github.com/jlisee/cbuildd"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
+	"strconv"
 )
 
 func main() {
@@ -25,6 +28,7 @@ func main() {
 	fmt.Printf("  output path:  %s[%d]\n", b.Args[b.Oindex], b.Oindex)
 	fmt.Printf("  input path:   %s[%d]\n", b.Args[b.Iindex], b.Iindex)
 
+	// TODO: Add in a local compile fast past
 	if !b.LinkCommand {
 		// Pre-process
 		tempPreprocess, results, err := cbuildd.Preprocess(compiler, b)
@@ -52,10 +56,20 @@ func main() {
 			Compiler: compiler,
 		}
 
-		// Build it! (todo: make this remote)
-		cresults, err := job.Compile()
+		// See if we have a remote host defined
+		host := os.Getenv("CBD_POTENTIAL_HOST")
 
-		if err != nil {
+		var cresults cbuildd.CompileResult
+
+		if len(host) > 0 {
+			// Build it remotely
+			cresults, err = buildRemote(host, job)
+		} else {
+			// Build it locally
+			cresults, err = job.Compile()
+		}
+
+		if err != nil || cresults.Return != 0 {
 			fmt.Print(string(cresults.Output))
 			os.Exit(cresults.Return)
 		}
@@ -86,14 +100,32 @@ func main() {
 }
 
 // // Build the given job on the remote host
-// func buildRemote(b Build, prepath string, host string) {
-// 	// Connect to the remote host so we can have it build our file
+func buildRemote(host string, job cbuildd.CompileJob) (cbuildd.CompileResult, error) {
+	var result cbuildd.CompileResult
+	result.Return = -1
 
-// 	// Create encoders so we can send our data across the wire
-// 	enc := gob.NewEncoder(&conn) // Will write to network.
-// 	dec := gob.NewDecoder(&conn) // Will read from network.
+	// Connect to the remote host so we can have it build our file
+	address := host + ":" + strconv.Itoa(cbuildd.Port)
 
-// 	// Send the build job
+	conn, err := net.Dial("tcp", address)
 
-// 	// Wait for the file to come back
-// }
+	if err != nil {
+		return result, err
+	}
+
+	// Send the build job
+	enc := gob.NewEncoder(conn)
+	enc.Encode(job)
+
+	// Read back our result
+	// TODO: use SetReadDeadline to timeout if we get nothing back
+	dec := gob.NewDecoder(conn)
+
+	err = dec.Decode(&result)
+
+	if err != nil {
+		return result, err
+	}
+
+	return result, nil
+}

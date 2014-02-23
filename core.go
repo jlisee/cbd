@@ -14,6 +14,11 @@ import (
 	"syscall"
 )
 
+var (
+	// Port used for network communications
+	Port = 15796
+)
+
 type Build struct {
 	Args        []string // Command line arguments
 	Oindex      int      // Index of argument *before* the output file
