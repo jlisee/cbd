@@ -23,6 +23,19 @@ type Build struct {
 	// TODO: file type
 }
 
+// A job to be farmed out to our cluster
+type CompileJob struct {
+	Build    Build  // The commands to build it with
+	Input    []byte // The data to build
+	Compiler string // The compiler to run it with
+}
+
+// The result of a compile
+type CompileResult struct {
+	ExecResult        // Results of the compiler command
+	ObjectCode []byte // The compiled object code
+}
+
 // The result of running a command
 type ExecResult struct {
 	Output []byte // Output of the command
@@ -38,7 +51,6 @@ func (b Build) Output() string {
 func (b Build) Input() string {
 	return b.Args[b.Iindex]
 }
-
 
 func ParseArgs(args []string) Build {
 	nolink := false
@@ -166,6 +178,42 @@ func Copyfile(dst, src string) error {
 		return err
 	}
 	return d.Close()
+}
+
+// Compile a job locally using temporary files and return the result
+func (c CompileJob) Compile() (result CompileResult, err error) {
+	// Open our temporary file
+	ext := filepath.Ext(c.Build.Input())
+
+	result.Return = -1
+
+	tempFile, err := TempFile("", "cbuildd-comp-", ext)
+	tempPath := tempFile.Name()
+
+	if err != nil {
+		return
+	}
+
+	defer os.Remove(tempPath)
+
+	// Write our output to our temporary file
+	tempFile.Write(c.Input)
+
+	// Build everything
+	outputPath, compileResult, err := Compile(c.Compiler, c.Build, tempPath)
+
+	result.ExecResult = compileResult
+
+	if err != nil {
+		return
+	}
+
+	defer os.Remove(outputPath)
+
+	// Read back the code
+	result.ObjectCode, err = ioutil.ReadFile(outputPath)
+
+	return
 }
 
 // Executes, returning the stdout if the program fails (the return code is

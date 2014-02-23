@@ -219,3 +219,59 @@ func TestCompile(t *testing.T) {
 
 	// TODO: Make sure the file contains object code
 }
+
+func TestCompileJobCompile(t *testing.T) {
+
+	// Build and run our compile job
+	tests := map[string]CompileJob{
+		"": CompileJob{
+			Build:    ParseArgs(strings.Split("-c data/main.c -o main.o", " ")),
+			Input:    []byte("#include <stdio.h>\nint main() { printf(\"Hello, world!\\n\");  return 0; } "),
+			Compiler: "gcc",
+		},
+		"error: expected ‘;’ before ‘return’": CompileJob{
+			Build:    ParseArgs(strings.Split("-c data/main.c -o main.o", " ")),
+			Input:    []byte("#include <stdio.h>\nint main() { printf(\"Hello, world!\\n\")  return 0; } "),
+			Compiler: "gcc",
+		},
+	}
+
+	for output, job := range tests {
+
+		result, err := job.Compile()
+
+		// Set the return code based on output
+		inError := false
+		eret := 0
+		if len(output) > 0 {
+			eret = 1
+			inError = true
+		}
+
+		if !inError && err != nil {
+			t.Error("Error with compiling job:", err)
+		}
+
+		// Test the return code
+		if result.Return != eret {
+			t.Errorf("Compile returned: %d", result.Return)
+		}
+
+		// Make sure we have actual code back
+		if !inError && len(result.ObjectCode) == 0 {
+			t.Errorf("Compile return no output data")
+		}
+
+		// Make sure we have no error text
+		if inError {
+			if !strings.Contains(string(result.Output), output) {
+				t.Errorf("Compile output: '%s' does not contain '%s'",
+					string(result.Output), output)
+			}
+		} else {
+			if 0 != len(result.Output) {
+				t.Errorf("Compile had output: '%s'", string(result.Output))
+			}
+		}
+	}
+}
