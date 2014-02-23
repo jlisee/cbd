@@ -1,10 +1,11 @@
 package cbuildd
 
 import (
-	"testing"
+	"bytes"
 	"os"
-	"strings"
 	"path/filepath"
+	"strings"
+	"testing"
 )
 
 // Helper functions
@@ -99,5 +100,43 @@ func TestTempFile(t *testing.T) {
 
 	if !strings.HasSuffix(name, suffix) {
 		t.Errorf("Error '%s' does not have suffix: '%s'", name, suffix)
+	}
+}
+
+// Put in a test for RunCmd here, make sure we are getting back stderr and stdout
+func TestRunCmd(t *testing.T) {
+	tests := map[string]ExecResult{
+		"go version": ExecResult{
+			Output: bytes.NewBufferString("go version go1.2 linux/amd64\n"),
+			Return: 0,
+		},
+		"go bob": ExecResult{
+			Output: bytes.NewBufferString("go: unknown subcommand \"bob\"\nRun 'go help' for usage.\n"),
+			Return: 2,
+		},
+	}
+
+	for cmd, eres := range tests {
+		// Split up string to get the command and it's args
+		args := strings.Split(cmd, " ")
+
+		res, err := RunCmd(args[0], args[1:])
+
+		// Ignore the errors that occur with non-zero return codes
+		if eres.Return == 0 {
+			if err != nil {
+				t.Errorf("Run command failed with: %s", err)
+			}
+		}
+
+		// Now check our results
+		if res.Return != eres.Return {
+			t.Errorf("Got return: %d instead of: %d", eres.Return, res.Return)
+		}
+
+		if res.Output.String() != eres.Output.String() {
+			t.Errorf("Got output: %s instead of: %s", res.Output.String(),
+				eres.Output.String())
+		}
 	}
 }

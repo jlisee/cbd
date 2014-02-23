@@ -2,15 +2,16 @@ package cbuildd
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
-	"io"
-	"os"
-	"os/exec"
-	"math/big"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"math/big"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"syscall"
 )
 
 type Build struct {
@@ -22,10 +23,22 @@ type Build struct {
 	// TODO: file type
 }
 
+// The result of running a command
+type ExecResult struct {
+	Output *bytes.Buffer // Output of the command
+	Return int           // Return code of program
+}
+
 // Returns the output path build job
 func (b Build) Output() string {
 	return b.Args[b.Oindex]
 }
+
+// Return the input path for the build job
+func (b Build) Input() string {
+	return b.Args[b.Iindex]
+}
+
 
 func ParseArgs(args []string) Build {
 	nolink := false
@@ -62,16 +75,19 @@ func ParseArgs(args []string) Build {
 
 // Build the file at the temporary location, you must clean up the returned
 // file.
-func Preprocess(compiler string, b Build) (string, error) {
+func Preprocess(compiler string, b Build) (resultPath string, result ExecResult, err error) {
+	// Set a default return code
+	result.Return = -1
+
 	// Get the extension of the output file
-	ext := filepath.Ext(b.Output())
+	ext := filepath.Ext(b.Input())
 
 	// Lets create a temporary file
 	tempFile, err := TempFile("", "cbuildd-comp-", ext)
 	tempPath := tempFile.Name()
 
 	if err != nil {
-		return "", err
+		return
 	}
 
 	// Update the arguments to adjust the output path
@@ -83,18 +99,21 @@ func Preprocess(compiler string, b Build) (string, error) {
 	gccArgs[b.Cindex] = "-E"
 
 	// Run gcc with the rest of our args
-	err = RunCmd(compiler, gccArgs)
+	result, err = RunCmd(compiler, gccArgs)
 
 	if err != nil {
-		return "", err
+		return "", result, err
 	}
 
-	return tempPath, err
+	return tempPath, result, err
 }
 
 // Build the file at the temporary location, you must clean up the returned
 // file.
-func Compile(compiler string, b Build, input string) (string, error) {
+func Compile(compiler string, b Build, input string) (resultPath string, result ExecResult, err error) {
+	// Set a default return code
+	result.Return = -1
+
 	// Get the extension of the output file
 	ext := filepath.Ext(b.Output())
 
@@ -103,7 +122,7 @@ func Compile(compiler string, b Build, input string) (string, error) {
 	tempPath := tempFile.Name()
 
 	if err != nil {
-		return "", err
+		return
 	}
 
 	// Update the arguments to point the output path to the temp directory and
@@ -113,16 +132,17 @@ func Compile(compiler string, b Build, input string) (string, error) {
 	copy(gccArgs, b.Args)
 
 	gccArgs[b.Oindex] = tempPath
+	gccArgs[b.Iindex] = input
 
 	// Run gcc with the rest of our args
 	// TODO: always include error output no matter what, needed for debugging
-	err = RunCmd(compiler, gccArgs)
+	result, err = RunCmd(compiler, gccArgs)
 
 	if err != nil {
-		return "", err
+		return "", result, err
 	}
 
-	return tempPath, err
+	return tempPath, result, err
 }
 
 // copies dst to src location, no metadata is copied
@@ -150,7 +170,7 @@ func Copyfile(dst, src string) error {
 
 // Executes, returning the stdout if the program fails (the return code is
 // ignored)
-func RunCmd(prog string, args []string) error {
+func RunCmd(prog string, args []string) (result ExecResult, err error) {
 	fmt.Printf("Run: %s ", prog)
 	for _, arg := range args {
 		fmt.Printf("%s ", arg)
@@ -159,19 +179,27 @@ func RunCmd(prog string, args []string) error {
 
 	cmd := exec.Command(prog, args...)
 
-	//var out bytes.Buffer
-	var outErr bytes.Buffer
-	//cmd.Stdout = &out
-	cmd.Stderr = &outErr
+	// Setup the buffer to hold the output
+	result.Output = new(bytes.Buffer)
 
-	err := cmd.Run()
-	//fmt.Printf("OUTPUT: %q\n", out.String())
+	cmd.Stdout = result.Output
+	cmd.Stderr = result.Output
 
+	err = cmd.Run()
+
+	// Get the return code out of the error
 	if err != nil {
-		return errors.New(outErr.String())
+		result.Return = -1
+
+		// Possibly Linux specific example
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				result.Return = status.ExitStatus()
+			}
+		}
 	}
 
-	return nil
+	return
 }
 
 // Generates and opens a temporary file with a defined prefix and suffix
@@ -201,7 +229,7 @@ func TempFile(dir, prefix string, suffix string) (f *os.File, err error) {
 		randString := hex.EncodeToString(randNum.Bytes())
 
 		// Attempt to open file and fail if it already exists
-		name := filepath.Join(dir, prefix + randString + suffix)
+		name := filepath.Join(dir, prefix+randString+suffix)
 		f, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 		if os.IsExist(err) {
 			continue

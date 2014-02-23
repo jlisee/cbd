@@ -26,7 +26,7 @@ func main() {
 
 	if !b.LinkCommand {
 		// Pre-process
-		tempPreprocess, err := cbuildd.Preprocess(compiler, b)
+		tempPreprocess, _, err := cbuildd.Preprocess(compiler, b)
 
 		if len(tempPreprocess) > 0 {
 			defer os.Remove(tempPreprocess)
@@ -37,7 +37,7 @@ func main() {
 		}
 
 		// Lets compile things
-		tempOutput, err := cbuildd.Compile(compiler, b, tempPreprocess)
+		tempOutput, _, err := cbuildd.Compile(compiler, b, tempPreprocess)
 
 		if len(tempOutput) > 0 {
 			defer os.Remove(tempOutput)
@@ -58,7 +58,7 @@ func main() {
 			log.Fatal(err)
 		}
 	} else {
-		err := cbuildd.RunCmd(compiler, os.Args[2:])
+		_, err := cbuildd.RunCmd(compiler, os.Args[2:])
 
 		if err != nil {
 			log.Fatal(err)
