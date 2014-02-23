@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/jlisee/cbuildd"
+	"io/ioutil"
 	"log"
 	"os"
 )
@@ -26,42 +27,73 @@ func main() {
 
 	if !b.LinkCommand {
 		// Pre-process
-		tempPreprocess, _, err := cbuildd.Preprocess(compiler, b)
+		tempPreprocess, results, err := cbuildd.Preprocess(compiler, b)
 
 		if len(tempPreprocess) > 0 {
 			defer os.Remove(tempPreprocess)
 		}
 
 		if err != nil {
-			log.Fatal(err)
+			fmt.Print(string(results.Output))
+			os.Exit(results.Return)
 		}
 
-		// Lets compile things
-		tempOutput, _, err := cbuildd.Compile(compiler, b, tempPreprocess)
-
-		if len(tempOutput) > 0 {
-			defer os.Remove(tempOutput)
-		}
+		// Read file back
+		preData, err := ioutil.ReadFile(tempPreprocess)
 
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		// Copy the file to the resulting location
-		err = os.Rename(tempOutput, b.Output())
-		if err != nil {
-			// Can't use the efficient rename, so lets us the copy
-			err = cbuildd.Copyfile(b.Output(), tempOutput)
+		// Turn into a compile job
+		job := cbuildd.CompileJob{
+			Build: b,
+			Input: preData,
+			Compiler: compiler,
 		}
+
+		// Build it! (todo: make this remote)
+		cresults, err := job.Compile()
+
+		if err != nil {
+			fmt.Print(string(cresults.Output))
+			os.Exit(cresults.Return)
+		}
+
+		// Now write the results to right output location
+		f, err := os.Create(b.Output())
 
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		defer f.Close()
+
+		_, err = f.Write(cresults.ObjectCode)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
 	} else {
-		_, err := cbuildd.RunCmd(compiler, os.Args[2:])
+		results, err := cbuildd.RunCmd(compiler, os.Args[2:])
 
 		if err != nil {
-			log.Fatal(err)
+			fmt.Print(string(results.Output))
+			os.Exit(results.Return)
 		}
 	}
 }
+
+// // Build the given job on the remote host
+// func buildRemote(b Build, prepath string, host string) {
+// 	// Connect to the remote host so we can have it build our file
+
+// 	// Create encoders so we can send our data across the wire
+// 	enc := gob.NewEncoder(&conn) // Will write to network.
+// 	dec := gob.NewDecoder(&conn) // Will read from network.
+
+// 	// Send the build job
+
+// 	// Wait for the file to come back
+// }
