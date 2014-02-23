@@ -108,11 +108,11 @@ func TestTempFile(t *testing.T) {
 func TestRunCmd(t *testing.T) {
 	tests := map[string]ExecResult{
 		"go version": ExecResult{
-			Output: bytes.NewBufferString("go version go1.2 linux/amd64\n"),
+			Output: []byte("go version go1.2 linux/amd64\n"),
 			Return: 0,
 		},
 		"go bob": ExecResult{
-			Output: bytes.NewBufferString("go: unknown subcommand \"bob\"\nRun 'go help' for usage.\n"),
+			Output: []byte("go: unknown subcommand \"bob\"\nRun 'go help' for usage.\n"),
 			Return: 2,
 		},
 	}
@@ -135,9 +135,9 @@ func TestRunCmd(t *testing.T) {
 			t.Errorf("Got return: %d instead of: %d", eres.Return, res.Return)
 		}
 
-		if res.Output.String() != eres.Output.String() {
-			t.Errorf("Got output: %s instead of: %s", res.Output.String(),
-				eres.Output.String())
+		if 0 != bytes.Compare(res.Output, eres.Output) {
+			t.Errorf("Got output: %s instead of: %s", string(res.Output),
+				string(eres.Output))
 		}
 	}
 }
@@ -149,7 +149,7 @@ func TestPreprocess(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Preprocess returned error: %s (Output: %s)", err,
-			result.Output.String())
+			string(result.Output))
 	}
 
 	if result.Return != 0 {
@@ -178,7 +178,7 @@ func TestPreprocess(t *testing.T) {
 	}
 
 	if !bytes.Contains(contents, []byte("printf(\"Hello, world!\\n\");")) {
-		t.Error("Output didn't contain C code:",string(contents))
+		t.Error("Output didn't contain C code:", string(contents))
 	}
 }
 
@@ -198,7 +198,7 @@ func TestCompile(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Compile returned error: %s (Output: %s)", err,
-			result.Output.String())
+			string(result.Output))
 	}
 
 	if result.Return != 0 {

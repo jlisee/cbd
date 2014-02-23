@@ -25,8 +25,8 @@ type Build struct {
 
 // The result of running a command
 type ExecResult struct {
-	Output *bytes.Buffer // Output of the command
-	Return int           // Return code of program
+	Output []byte // Output of the command
+	Return int    // Return code of program
 }
 
 // Returns the output path build job
@@ -180,12 +180,16 @@ func RunCmd(prog string, args []string) (result ExecResult, err error) {
 	cmd := exec.Command(prog, args...)
 
 	// Setup the buffer to hold the output
-	result.Output = new(bytes.Buffer)
+	// TODO: consider caching this buffer
+	buffer := new(bytes.Buffer)
 
-	cmd.Stdout = result.Output
-	cmd.Stderr = result.Output
+	cmd.Stdout = buffer
+	cmd.Stderr = buffer
 
 	err = cmd.Run()
+
+	// Copy over our buffer
+	result.Output = buffer.Bytes()
 
 	// Get the return code out of the error
 	if err != nil {
