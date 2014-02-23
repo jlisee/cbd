@@ -2,6 +2,7 @@ package cbuildd
 
 import (
 	"bytes"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -139,4 +140,82 @@ func TestRunCmd(t *testing.T) {
 				eres.Output.String())
 		}
 	}
+}
+
+// This test requires gcc to be installed
+func TestPreprocess(t *testing.T) {
+	b := ParseArgs(strings.Split("-c data/main.c -o main.o", " "))
+	filePath, result, err := Preprocess("gcc", b)
+
+	if err != nil {
+		t.Errorf("Preprocess returned error: %s (Output: %s)", err,
+			result.Output.String())
+	}
+
+	if result.Return != 0 {
+		t.Errorf("Preprocess returned: %d", result.Return)
+	}
+
+	// Make sure we have the right extension
+	ext := filepath.Ext(filePath)
+	if ext != ".c" {
+		t.Error("File does not have required .c extension has:", ext)
+	}
+
+	// Make sure the file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		t.Error("Output file does not exist:", filePath)
+		return
+	} else {
+		//defer os.Remove(filePath)
+	}
+
+	// Makes sure the file contains C source code
+	contents, err := ioutil.ReadFile(filePath)
+
+	if err != nil {
+		t.Error("Could not read file:", err)
+	}
+
+	if !bytes.Contains(contents, []byte("printf(\"Hello, world!\\n\");")) {
+		t.Error("Output didn't contain C code:",string(contents))
+	}
+}
+
+// This test requires gcc to be installed
+func TestCompile(t *testing.T) {
+	// Create a temporary file and copy the C source code into that location
+	f, err := TempFile("", "cbd-test-", ".c")
+	tempFile := f.Name()
+
+	defer os.Remove(tempFile)
+
+	Copyfile(tempFile, "data/main.c")
+
+	// Now lets build that temp code
+	b := ParseArgs(strings.Split("-c data/nothere.c -o main.o", " "))
+	filePath, result, err := Compile("gcc", b, tempFile)
+
+	if err != nil {
+		t.Errorf("Compile returned error: %s (Output: %s)", err,
+			result.Output.String())
+	}
+
+	if result.Return != 0 {
+		t.Errorf("Compile returned: %d", result.Return)
+	}
+
+	// Make sure we have the right extension
+	ext := filepath.Ext(filePath)
+	if ext != ".o" {
+		t.Error("File does not have required .o extension has:", ext)
+	}
+
+	// Make sure the file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		t.Error("Output file does not exist:", filePath)
+		return
+	}
+
+	// TODO: Make sure the file contains object code
 }
