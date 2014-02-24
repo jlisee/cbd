@@ -1,4 +1,4 @@
-package cbuildd
+package cbd
 
 import (
 	"bytes"

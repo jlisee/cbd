@@ -1,4 +1,4 @@
-package cbuildd
+package cbd
 
 import (
 	"io/ioutil"
@@ -86,7 +86,7 @@ func Preprocess(compiler string, b Build) (resultPath string, result ExecResult,
 	ext := filepath.Ext(b.Input())
 
 	// Lets create a temporary file
-	tempFile, err := TempFile("", "cbuildd-comp-", ext)
+	tempFile, err := TempFile("", "cbd-comp-", ext)
 	tempPath := tempFile.Name()
 
 	if err != nil {
@@ -121,7 +121,7 @@ func Compile(compiler string, b Build, input string) (resultPath string, result 
 	ext := filepath.Ext(b.Output())
 
 	// Lets create a temporary file
-	tempFile, err := TempFile("", "cbuildd-comp-", ext)
+	tempFile, err := TempFile("", "cbd-comp-", ext)
 	tempPath := tempFile.Name()
 
 	if err != nil {
@@ -148,7 +148,6 @@ func Compile(compiler string, b Build, input string) (resultPath string, result 
 	return tempPath, result, err
 }
 
-
 // Compile a job locally using temporary files and return the result
 func (c CompileJob) Compile() (result CompileResult, err error) {
 	// Open our temporary file
@@ -156,7 +155,7 @@ func (c CompileJob) Compile() (result CompileResult, err error) {
 
 	result.Return = -1
 
-	tempFile, err := TempFile("", "cbuildd-comp-", ext)
+	tempFile, err := TempFile("", "cbd-comp-", ext)
 	tempPath := tempFile.Name()
 
 	if err != nil {

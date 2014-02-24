@@ -1,4 +1,4 @@
-package cbuildd
+package cbd
 
 import (
 	"bytes"
@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 )
-
-
 
 func TestTempFile(t *testing.T) {
 	f, err := TempFile("", "cbd-test-", ".test")

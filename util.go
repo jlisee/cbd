@@ -1,10 +1,10 @@
-// This package contains utility functions that are miscellaneous or fill in
+// This file contains utility functions that are miscellaneous or fill in
 // gaps in Go's standard library.  Either way that are not specific to this
 // project.
 //
 // Author: Joseph Lisee <jlisee@gmail.com>
 
-package cbuildd
+package cbd
 
 import (
 	"bytes"

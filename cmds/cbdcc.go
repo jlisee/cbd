@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/gob"
 	"fmt"
-	"github.com/jlisee/cbuildd"
+	"github.com/jlisee/cbd"
 	"io/ioutil"
 	"log"
 	"net"
@@ -20,7 +20,7 @@ func main() {
 	// stops parsing after positional args, and github.com/ogier/pflag errors out
 	// on unknown arguments.
 
-	b := cbuildd.ParseArgs(os.Args[2:])
+	b := cbd.ParseArgs(os.Args[2:])
 
 	// Dump arguments
 	fmt.Println("INPUTS:")
@@ -31,7 +31,7 @@ func main() {
 	// TODO: Add in a local compile fast past
 	if !b.LinkCommand {
 		// Pre-process
-		tempPreprocess, results, err := cbuildd.Preprocess(compiler, b)
+		tempPreprocess, results, err := cbd.Preprocess(compiler, b)
 
 		if len(tempPreprocess) > 0 {
 			defer os.Remove(tempPreprocess)
@@ -50,16 +50,16 @@ func main() {
 		}
 
 		// Turn into a compile job
-		job := cbuildd.CompileJob{
-			Build: b,
-			Input: preData,
+		job := cbd.CompileJob{
+			Build:    b,
+			Input:    preData,
 			Compiler: compiler,
 		}
 
 		// See if we have a remote host defined
 		host := os.Getenv("CBD_POTENTIAL_HOST")
 
-		var cresults cbuildd.CompileResult
+		var cresults cbd.CompileResult
 
 		if len(host) > 0 {
 			// Build it remotely
@@ -90,7 +90,7 @@ func main() {
 		}
 
 	} else {
-		results, err := cbuildd.RunCmd(compiler, os.Args[2:])
+		results, err := cbd.RunCmd(compiler, os.Args[2:])
 
 		if err != nil {
 			fmt.Print(string(results.Output))
@@ -100,12 +100,11 @@ func main() {
 }
 
 // // Build the given job on the remote host
-func buildRemote(host string, job cbuildd.CompileJob) (cbuildd.CompileResult, error) {
-	var result cbuildd.CompileResult
-	result.Return = -1
+func buildRemote(host string, job cbd.CompileJob) (cbd.CompileResult, error) {
+	var result cbd.CompileResult
 
 	// Connect to the remote host so we can have it build our file
-	address := host + ":" + strconv.Itoa(cbuildd.Port)
+	address := host + ":" + strconv.Itoa(cbd.Port)
 
 	conn, err := net.Dial("tcp", address)
 

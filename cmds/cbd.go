@@ -1,17 +1,16 @@
 package main
 
 import (
-	"net"
-	"github.com/jlisee/cbuildd"
-	"log"
 	"encoding/gob"
+	"github.com/jlisee/cbd"
+	"log"
+	"net"
 	"strconv"
 )
 
-
 func main() {
 
-	address := ":" + strconv.Itoa(cbuildd.Port)
+	address := ":" + strconv.Itoa(cbd.Port)
 	log.Print("Listening on: ", address)
 
 	ln, err := net.Listen("tcp", address)
@@ -33,7 +32,7 @@ func handleRequest(conn net.Conn) {
 
 	// Decode the CompileJob
 	dec := gob.NewDecoder(conn)
-	var job cbuildd.CompileJob
+	var job cbd.CompileJob
 
 	// TODO: use SetReadDeadline to timeout if we get nothing back
 	err := dec.Decode(&job)
