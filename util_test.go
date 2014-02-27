@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -34,9 +35,12 @@ func TestTempFile(t *testing.T) {
 
 // Put in a test for RunCmd here, make sure we are getting back stderr and stdout
 func TestRunCmd(t *testing.T) {
+	// Dynamically build the "version GOOS/GOARCH" string that go produces
+	verstr := runtime.Version() + " " + runtime.GOOS + "/" + runtime.GOARCH
+
 	tests := map[string]ExecResult{
 		"go version": ExecResult{
-			Output: []byte("go version go1.2 linux/amd64\n"),
+			Output: []byte("go version " + verstr + "\n"),
 			Return: 0,
 		},
 		"go bob": ExecResult{
