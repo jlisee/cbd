@@ -1,11 +1,11 @@
 package main
 
 import (
-	"encoding/gob"
 	"github.com/jlisee/cbd"
 	"log"
 	"net"
 	"strconv"
+	"time"
 )
 
 func main() {
@@ -31,11 +31,8 @@ func handleRequest(conn net.Conn) {
 	log.Print("Handling request...")
 
 	// Decode the CompileJob
-	dec := gob.NewDecoder(conn)
-	var job cbd.CompileJob
-
-	// TODO: use SetReadDeadline to timeout if we get nothing back
-	err := dec.Decode(&job)
+	mc := cbd.NewMessageConn(conn, time.Duration(10)*time.Second)
+	job, err := mc.ReadCompileJob()
 
 	if err != nil {
 		log.Print("Decode error:", err)
@@ -46,9 +43,7 @@ func handleRequest(conn net.Conn) {
 	cresults, _ := job.Compile()
 
 	// Send back the result
-	enc := gob.NewEncoder(conn)
-
-	err = enc.Encode(cresults)
+	err = mc.Send(cresults)
 
 	if err != nil {
 		log.Print("Encode error:", err)

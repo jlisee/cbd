@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/gob"
 	"fmt"
 	"github.com/jlisee/cbd"
 	"io/ioutil"
@@ -9,6 +8,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"time"
 )
 
 func main() {
@@ -106,6 +106,7 @@ func buildRemote(host string, job cbd.CompileJob) (cbd.CompileResult, error) {
 	// Connect to the remote host so we can have it build our file
 	address := host + ":" + strconv.Itoa(cbd.Port)
 
+	// TODO: use SetReadDeadline to timeout if we get nothing back
 	conn, err := net.Dial("tcp", address)
 
 	if err != nil {
@@ -113,14 +114,12 @@ func buildRemote(host string, job cbd.CompileJob) (cbd.CompileResult, error) {
 	}
 
 	// Send the build job
-	enc := gob.NewEncoder(conn)
-	enc.Encode(job)
+	mc := cbd.NewMessageConn(conn, time.Duration(10)*time.Second)
+
+	mc.Send(job)
 
 	// Read back our result
-	// TODO: use SetReadDeadline to timeout if we get nothing back
-	dec := gob.NewDecoder(conn)
-
-	err = dec.Decode(&result)
+	result, err = mc.ReadCompileResult()
 
 	if err != nil {
 		return result, err
