@@ -14,6 +14,7 @@ import (
 	"net"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -71,9 +72,13 @@ type MessageConn struct {
 }
 
 // Create a TCP based message conn
-func NewTCPMessageConn(host string, port int, d time.Duration) (*MessageConn, error) {
-	address := host + ":" + strconv.Itoa(port)
+func NewTCPMessageConn(address string, d time.Duration) (*MessageConn, error) {
+	// Add default port if needed
+	if strings.Index(address, ":") < 0 {
+		address = address + ":" + strconv.Itoa(Port)
+	}
 
+	// Make our connection
 	conn, err := net.Dial("tcp", address)
 
 	if err != nil {

@@ -98,11 +98,11 @@ func main() {
 }
 
 // Build the given job on the remote host
-func buildRemote(host string, job cbd.CompileJob) (cbd.CompileResult, error) {
+func buildRemote(address string, job cbd.CompileJob) (cbd.CompileResult, error) {
 	var result cbd.CompileResult
 
 	// Connect to the remote host so we can have it build our file
-	mc, err := cbd.NewTCPMessageConn(host, cbd.Port, time.Duration(10)*time.Second)
+	mc, err := cbd.NewTCPMessageConn(address, time.Duration(10)*time.Second)
 
 	// Send the build job
 	mc.Send(job)
