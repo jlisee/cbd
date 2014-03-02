@@ -8,6 +8,15 @@ function clean() {
     rm -f test-main main.o cbd cbd.test
 }
 
+function checkout() {
+    testout=$(./test-main)
+
+    if [ "$testout" != "Hello, world!" ]; then
+        echo "Output Invalid got value '$testout'"
+        exit 1
+    fi
+}
+
 clean
 
 # Run tests
@@ -24,9 +33,8 @@ export CBD_POTENTIAL_HOST=''
 
 cbdcc gcc -c data/main.c -o main.o
 cbdcc gcc main.o -o test-main
+checkout # Test the output
 
-# Maybe we should test the output somehow
-./test-main
 
 # Clean up
 clean
@@ -40,6 +48,8 @@ export CBD_POTENTIAL_HOST="localhost"
 
 cbdcc gcc -c data/main.c -o main.o
 cbdcc gcc main.o -o test-main
-./test-main
+checkout # Test the output
 
 clean
+
+# Now lets do again over with a server
