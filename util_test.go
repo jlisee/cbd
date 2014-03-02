@@ -73,3 +73,16 @@ func TestRunCmd(t *testing.T) {
 		}
 	}
 }
+
+func TestGetLoadAverage(t *testing.T) {
+	load, err := GetLoadAverage()
+
+	if err != nil {
+		t.Errorf("Error:", err)
+		return
+	}
+
+	if load <= 0 {
+		t.Error("Load bad: ", load)
+	}
+}

@@ -12,10 +12,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -121,4 +124,24 @@ func TempFile(dir, prefix string, suffix string) (f *os.File, err error) {
 		break
 	}
 	return
+}
+
+// GetLoadAverage returns the 1 minute system load average
+// TODO: linux only, support more of unix by using cgo and getloadavg
+func GetLoadAverage() (float64, error) {
+	d, err := ioutil.ReadFile("/proc/loadavg")
+
+	if err != nil {
+		return 0.0, err
+	}
+
+	parts := strings.Split(string(d), " ")
+
+	load, err := strconv.ParseFloat(parts[0], 64)
+
+	if err != nil {
+		return 0.0, err
+	}
+
+	return load, nil
 }
