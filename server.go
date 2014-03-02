@@ -107,8 +107,10 @@ func (s *ServerState) handleConnection(conn *MessageConn) {
 	case WorkerRequest:
 		err = s.processWorkerRequest(conn)
 	case WorkerState:
-		// TODO: spin off go-routine here to deal with the worker
+		// Push update and then start continously handling the worker connection
 		s.updateWorker(m)
+
+		s.handleWorkerConnection(conn)
 	default:
 		log.Print("Un-handled message type: ", reflect.TypeOf(msg).Name())
 	}
@@ -118,7 +120,23 @@ func (s *ServerState) handleConnection(conn *MessageConn) {
 	}
 }
 
-// Handle compile jobs
+// handleWorkerConnection continously grabs updates from one worker
+// and sends updates the server state
+func (s *ServerState) handleWorkerConnection(conn *MessageConn) {
+	for {
+		ws, err := conn.ReadWorkerState()
+
+		if err != nil {
+			log.Print("Error reading worker state: ", err)
+			break
+		}
+
+		s.updateWorker(ws)
+	}
+}
+
+// processWorkerRequest searches for an available worker and sends the
+// result back on the given connection.
 func (s *ServerState) processWorkerRequest(conn *MessageConn) error {
 	// Find free worker
 	host, port, err := s.findWorker()
@@ -134,7 +152,3 @@ func (s *ServerState) processWorkerRequest(conn *MessageConn) error {
 	}
 	return conn.Send(r)
 }
-
-// // Handle workers
-// func handleRequest(conn net.Conn) {
-// }
