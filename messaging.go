@@ -25,11 +25,17 @@ type MessageID int
 const (
 	CompileJobID MessageID = iota
 	CompileResultID
+	WorkerRequestID
+	WorkerResponseID
+	WorkerStateID
 )
 
 var messageIDNames = [...]string{
 	"CompileJobID",
 	"CompileResultID",
+	"WorkerRequestID",
+	"WorkerResponseID",
+	"WorkerStateID",
 }
 
 func (mID MessageID) String() string {
@@ -115,11 +121,73 @@ func (mc MessageConn) Send(i interface{}) (err error) {
 		if err == nil {
 			return mc.enc.Encode(m)
 		}
+	case WorkerRequest:
+		err = mc.sendHeader(WorkerRequestID)
+		if err == nil {
+			return mc.enc.Encode(m)
+		}
+	case WorkerResponse:
+		err = mc.sendHeader(WorkerResponseID)
+		if err == nil {
+			return mc.enc.Encode(m)
+		}
+	case WorkerState:
+		err = mc.sendHeader(WorkerStateID)
+		if err == nil {
+			return mc.enc.Encode(m)
+		}
 	default:
-		return errors.New("Could not decode type: " + reflect.TypeOf(i).Name())
+		return errors.New("Could not encode type: " + reflect.TypeOf(i).Name())
 	}
 
 	return err
+}
+
+func (mc MessageConn) Read() (MessageHeader, interface{}, error) {
+	err := mc.setReadDeadline()
+
+	var h MessageHeader
+	err = mc.dec.Decode(&h)
+
+	if err != nil {
+		return h, nil, err
+	}
+
+	// Now read in our message
+	switch h.ID {
+	case CompileJobID:
+		var j CompileJob
+		err = mc.dec.Decode(&j)
+		return h, j, err
+	case CompileResultID:
+		var r CompileResult
+		err = mc.dec.Decode(&r)
+		return h, r, err
+	case WorkerRequestID:
+		var r WorkerRequest
+		err = mc.dec.Decode(&r)
+		return h, r, err
+	case WorkerResponseID:
+		var r WorkerResponse
+		err = mc.dec.Decode(&r)
+		return h, r, err
+	case WorkerStateID:
+		var s WorkerState
+		err := mc.dec.Decode(&s)
+		return h, s, err
+	default:
+		return h, nil, errors.New("Unknown message ID: " + h.ID.String())
+	}
+}
+
+func (mc MessageConn) ReadType(eID MessageID) (interface{}, error) {
+	_, msg, err := mc.Read()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return msg, err
 }
 
 func (mc MessageConn) setReadDeadline() error {
@@ -187,4 +255,38 @@ func (mc MessageConn) ReadCompileResult() (r CompileResult, err error) {
 
 	err = mc.dec.Decode(&r)
 	return r, err
+}
+
+func (mc MessageConn) ReadWorkerResponse() (r WorkerResponse, err error) {
+	err = mc.setReadDeadline()
+
+	if err != nil {
+		return r, err
+	}
+
+	_, err = mc.readHeader(WorkerResponseID)
+
+	if err != nil {
+		return r, err
+	}
+
+	err = mc.dec.Decode(&r)
+	return r, err
+}
+
+func (mc MessageConn) ReadWorkerState() (s WorkerState, err error) {
+	err = mc.setReadDeadline()
+
+	if err != nil {
+		return s, err
+	}
+
+	_, err = mc.readHeader(WorkerStateID)
+
+	if err != nil {
+		return s, err
+	}
+
+	err = mc.dec.Decode(&s)
+	return s, err
 }

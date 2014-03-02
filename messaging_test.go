@@ -3,6 +3,7 @@ package cbd
 import (
 	"bytes"
 	"encoding/gob"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -44,6 +45,47 @@ func TestMessageConn(t *testing.T) {
 	// Just check one field
 	if input.Return != output.Return {
 		t.Errorf("Return not serialized")
+	}
+}
+
+func TestRead(t *testing.T) {
+
+	var network MockConn
+	mc := NewMessageConn(&network, time.Duration(10)*time.Second)
+
+	input := WorkerState{
+		Host: "bob",
+		Port: 57,
+	}
+
+	err := mc.Send(input)
+
+	if err != nil {
+		t.Error("Message send error: ", err)
+		return
+	}
+
+	// Read the first message on the connection
+	_, msg, err := mc.Read()
+
+	if err != nil {
+		t.Error("Message reader error: ", err)
+		return
+	}
+
+	// Hand the message off to the proper function
+	switch m := msg.(type) {
+	case WorkerState:
+		if m.Port != 57 {
+			t.Error("Port incorrect")
+		}
+
+		if m.Host != "bob" {
+			t.Errorf("Got host \"%s\" wanted %s", m.Host, "bob")
+		}
+
+	default:
+		t.Error("Un-handled message type: ", reflect.TypeOf(msg).Name())
 	}
 }
 
