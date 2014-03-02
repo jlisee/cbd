@@ -1,54 +1,64 @@
 package main
 
 import (
+	"flag"
 	"github.com/jlisee/cbd"
 	"log"
 	"net"
+	"os"
 	"strconv"
-	"time"
 )
 
 func main() {
 
-	address := ":" + strconv.Itoa(cbd.Port)
-	log.Print("Listening on: ", address)
+	// Input flag parsing
+	var address string
+	daddress := "localhost:" + strconv.Itoa(cbd.Port)
+
+	var server bool
+
+	flag.StringVar(&address, "address", daddress, "Address to listen on")
+	flag.BoolVar(&server, "server", false, "Run as a server instead of worker")
+
+	flag.Parse()
+
+	// Do work
+	log.Print("Listening on: ", address, " server?: ", server)
+
+	if server {
+		runServer(address)
+	} else {
+		runWorker(address)
+	}
+}
+
+func runWorker(address string) {
+	log.Print("Worker starting")
 
 	ln, err := net.Listen("tcp", address)
 	if err != nil {
 		log.Fatal(err)
 	}
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			log.Print(err)
-			continue
-		}
-		go handleRequest(conn)
+
+	saddr := os.Getenv("CBD_SERVER")
+
+	w, err := cbd.NewWorker(address, saddr)
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	w.Serve(ln)
 }
 
-func handleRequest(conn net.Conn) {
-	log.Print("Handling request...")
+func runServer(address string) {
+	log.Print("Server starting")
 
-	// Decode the CompileJob
-	mc := cbd.NewMessageConn(conn, time.Duration(10)*time.Second)
-	job, err := mc.ReadCompileJob()
-
+	ln, err := net.Listen("tcp", address)
 	if err != nil {
-		log.Print("Decode error:", err)
-		return
+		log.Fatal(err)
 	}
 
-	// Build the code
-	cresults, _ := job.Compile()
+	s := cbd.NewServerState()
 
-	// Send back the result
-	err = mc.Send(cresults)
-
-	if err != nil {
-		log.Print("Encode error:", err)
-		return
-	}
-
-	log.Print("Done.")
+	s.Serve(ln)
 }
