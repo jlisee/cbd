@@ -5,9 +5,7 @@ import (
 	"github.com/jlisee/cbd"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -99,23 +97,14 @@ func main() {
 	}
 }
 
-// // Build the given job on the remote host
+// Build the given job on the remote host
 func buildRemote(host string, job cbd.CompileJob) (cbd.CompileResult, error) {
 	var result cbd.CompileResult
 
 	// Connect to the remote host so we can have it build our file
-	address := host + ":" + strconv.Itoa(cbd.Port)
-
-	// TODO: use SetReadDeadline to timeout if we get nothing back
-	conn, err := net.Dial("tcp", address)
-
-	if err != nil {
-		return result, err
-	}
+	mc, err := cbd.NewTCPMessageConn(host, cbd.Port, time.Duration(10)*time.Second)
 
 	// Send the build job
-	mc := cbd.NewMessageConn(conn, time.Duration(10)*time.Second)
-
 	mc.Send(job)
 
 	// Read back our result

@@ -11,7 +11,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"reflect"
+	"strconv"
 	"time"
 )
 
@@ -66,6 +68,19 @@ type MessageConn struct {
 	dec     *gob.Decoder       // Encodes data into our buffer
 	enc     *gob.Encoder       // Decodes data into our buffer
 	timeout time.Duration      // nanosecond timeout
+}
+
+// Create a TCP based message conn
+func NewTCPMessageConn(host string, port int, d time.Duration) (*MessageConn, error) {
+	address := host + ":" + strconv.Itoa(port)
+
+	conn, err := net.Dial("tcp", address)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return NewMessageConn(conn, time.Duration(10)*time.Second), nil
 }
 
 // Create a message connection with the given buffer
