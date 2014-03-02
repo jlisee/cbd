@@ -40,4 +40,8 @@ func TestSendWorkerState(t *testing.T) {
 	if s.Host != "bob" {
 		t.Errorf("Got host \"%s\" wanted %s", s.Host, "bob")
 	}
+
+	if s.Load <= 0 {
+		t.Errorf("Bad system load")
+	}
 }

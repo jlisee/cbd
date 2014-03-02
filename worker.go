@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"net"
 	"os"
 	"runtime"
@@ -135,16 +136,23 @@ func (w *Worker) sendWorkerState(mc *MessageConn, host string) error {
 	capacity := runtime.NumCPU()
 
 	for {
+		// Get the current load
+		load, err := GetLoadAverage()
+
+		if err != nil {
+			log.Print("Error getting load: ", err)
+		}
+
 		// Update the state with the latest information
 		ws := WorkerState{
 			Host:     host,
 			Port:     w.port,
 			Capacity: capacity,
-			Load:     0,
+			Load:     int(math.Ceil(load)),
 			Updated:  time.Now(),
 		}
 
-		err := mc.Send(ws)
+		err = mc.Send(ws)
 
 		if err != nil {
 			return err
