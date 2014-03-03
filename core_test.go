@@ -105,7 +105,7 @@ func TestPreprocess(t *testing.T) {
 		t.Error("Output file does not exist:", filePath)
 		return
 	} else {
-		//defer os.Remove(filePath)
+		defer os.Remove(filePath)
 	}
 
 	// Makes sure the file contains C source code
@@ -132,6 +132,7 @@ func TestCompile(t *testing.T) {
 
 	// Now lets build that temp code
 	b := ParseArgs(strings.Split("-c data/nothere.c -o main.o", " "))
+
 	filePath, result, err := Compile("gcc", b, tempFile)
 
 	if err != nil {
@@ -153,6 +154,8 @@ func TestCompile(t *testing.T) {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		t.Error("Output file does not exist:", filePath)
 		return
+	} else {
+		defer os.Remove(filePath)
 	}
 
 	// TODO: Make sure the file contains object code
@@ -175,7 +178,6 @@ func TestCompileJobCompile(t *testing.T) {
 	}
 
 	for output, job := range tests {
-
 		result, err := job.Compile()
 
 		// Set the return code based on output

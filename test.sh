@@ -38,6 +38,11 @@ go build cmds/cbdcc.go
 go build cmds/cbd.go
 mv cbdcc cbd $GOPATH/bin
 
+
+# ----------------------------------------------------------------------------
+# Local tests
+# ----------------------------------------------------------------------------
+
 # The compile the program
 disp "[Local only test]"
 
@@ -49,6 +54,11 @@ checkout # Test the output
 
 # Clean up
 clean
+
+
+# ----------------------------------------------------------------------------
+# Worker test
+# ----------------------------------------------------------------------------
 
 # Now lets do it again over the network
 disp "[Direct worker test]"
@@ -65,6 +75,11 @@ checkout # Test the output
 
 clean
 kill -9 ${d_pid} &> /dev/null
+
+
+# ----------------------------------------------------------------------------
+# Server test
+# ----------------------------------------------------------------------------
 
 # Now lets do again over with a server and a worker
 disp "[Server & worker test]"

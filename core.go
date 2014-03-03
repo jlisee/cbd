@@ -86,7 +86,7 @@ func Preprocess(compiler string, b Build) (resultPath string, result ExecResult,
 	ext := filepath.Ext(b.Input())
 
 	// Lets create a temporary file
-	tempFile, err := TempFile("", "cbd-comp-", ext)
+	tempFile, err := TempFile("", "cbd-pre-", ext)
 	tempPath := tempFile.Name()
 
 	if err != nil {
@@ -124,6 +124,11 @@ func Compile(compiler string, b Build, input string) (resultPath string, result 
 	tempFile, err := TempFile("", "cbd-comp-", ext)
 	tempPath := tempFile.Name()
 
+	// Make sure we return the result path if it's created
+	if _, err := os.Stat(tempPath); err == nil {
+		resultPath = tempPath
+	}
+
 	if err != nil {
 		return
 	}
@@ -142,10 +147,40 @@ func Compile(compiler string, b Build, input string) (resultPath string, result 
 	result, err = RunCmd(compiler, gccArgs)
 
 	if err != nil {
-		return "", result, err
+		return resultPath, result, err
 	}
 
-	return tempPath, result, err
+	return resultPath, result, err
+}
+
+// MakeCompileJob takes the requested Build, pre-processses the needed
+// file and returns a CompileJob with code.
+func MakeCompileJob(compiler string, b Build) (j CompileJob, results ExecResult, err error) {
+	tempPreprocess, results, err := Preprocess(compiler, b)
+
+	if len(tempPreprocess) > 0 {
+		defer os.Remove(tempPreprocess)
+	}
+
+	if err != nil {
+		return j, results, err
+	}
+
+	// Read file back
+	preData, err := ioutil.ReadFile(tempPreprocess)
+
+	if err != nil {
+		return j, results, err
+	}
+
+	// Turn into a compile job
+	j = CompileJob{
+		Build:    b,
+		Input:    preData,
+		Compiler: compiler,
+	}
+
+	return j, results, nil
 }
 
 // Compile a job locally using temporary files and return the result
@@ -155,7 +190,7 @@ func (c CompileJob) Compile() (result CompileResult, err error) {
 
 	result.Return = -1
 
-	tempFile, err := TempFile("", "cbd-comp-", ext)
+	tempFile, err := TempFile("", "cbd-input-", ext)
 	tempPath := tempFile.Name()
 
 	if err != nil {
@@ -172,11 +207,15 @@ func (c CompileJob) Compile() (result CompileResult, err error) {
 
 	result.ExecResult = compileResult
 
+	// Make sure to remove the output file if it exists
+	if _, err := os.Stat(outputPath); err == nil {
+		defer os.Remove(outputPath)
+	}
+
+	// Return error
 	if err != nil {
 		return
 	}
-
-	defer os.Remove(outputPath)
 
 	// Read back the code
 	result.ObjectCode, err = ioutil.ReadFile(outputPath)

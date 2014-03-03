@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/jlisee/cbd"
-	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -29,30 +28,12 @@ func main() {
 
 	// TODO: Add in a local compile fast past
 	if !b.LinkCommand {
-		// Pre-process
-		tempPreprocess, results, err := cbd.Preprocess(compiler, b)
-
-		if len(tempPreprocess) > 0 {
-			defer os.Remove(tempPreprocess)
-		}
+		// Pre-process the file into a compile job
+		job, results, err := cbd.MakeCompileJob(compiler, b)
 
 		if err != nil {
 			fmt.Print(string(results.Output))
 			os.Exit(results.Return)
-		}
-
-		// Read file back
-		preData, err := ioutil.ReadFile(tempPreprocess)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// Turn into a compile job
-		job := cbd.CompileJob{
-			Build:    b,
-			Input:    preData,
-			Compiler: compiler,
 		}
 
 		// See if we have a remote host defined
