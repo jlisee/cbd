@@ -1,26 +1,59 @@
-cbuildd
-=======
+cbd
+====
 
 A distributed build and caching engine for C and C++.
 
-Plan
-=====
 
- - Build a program which can compile splits the compile into a preprocess and
-   then build step.
+Usage
+======
 
-Functional Parts
-=================
+On your "build-server" host start the server listening on port 18000:
 
- - Initial command line processor:
-   - Determines if this a command to produce a .o file
-   - Identifies output target
+    cbd -address :18000 -server
 
- - Command line transformers:
-   - Produces preprocessor generation command
-   - Produces final compilation command
+Start up workers on your various hosts and point them toward the
+server (they will be listening on port 17000):
 
- - Thing that executes gcc commands
+    export CBD_SERVER=build-server:18000
+    cbd -address :17000
+
+Use the client program in place of gcc and g++:
+
+    export CBD_SERVER=build-server:18000
+    export CC='cbdcc gcc'
+    export CXX='cbdcc g++'
+
+Now run your build tool as normal.
+
+
+Roadmap
+========
+
+ - Monitoring CLI program
+ - Auto-discovery of server
+ - Centralized object file cache
+ - Embedded web browser for monitoring GUI
+
 
 Design
 =======
+
+The main parts of the final system and their purpose:
+
+Server
+-------
+
+ - Tracks the load status of workers.
+ - Responds to requests sending back an available worker
+
+Worker
+-------
+
+ - Accepts build jobs, compiles and returns the results
+ - Sends updates containing load and CPU count to the server
+
+Client
+-------
+
+ - Stands in for the compiler turning commands into build jobs
+ - Uses the server to find a worker to complete it's job
