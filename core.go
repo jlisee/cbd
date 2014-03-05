@@ -94,7 +94,7 @@ func Preprocess(compiler string, b Build) (resultPath string, result ExecResult,
 	ext := filepath.Ext(b.Input())
 
 	// Lets create a temporary file
-	tempFile, err := TempFile("", "cbd-pre-", ext)
+	tempFile, err := TempFile(tempFileDir(), "cbd-pre-", ext)
 	tempPath := tempFile.Name()
 
 	if err != nil {
@@ -129,7 +129,7 @@ func Compile(compiler string, b Build, input string) (resultPath string, result 
 	ext := filepath.Ext(b.Output())
 
 	// Lets create a temporary file
-	tempFile, err := TempFile("", "cbd-comp-", ext)
+	tempFile, err := TempFile(tempFileDir(), "cbd-comp-", ext)
 	tempPath := tempFile.Name()
 
 	// Make sure we return the result path if it's created
@@ -198,7 +198,7 @@ func (c CompileJob) Compile() (result CompileResult, err error) {
 
 	result.Return = -1
 
-	tempFile, err := TempFile("", "cbd-input-", ext)
+	tempFile, err := TempFile(tempFileDir(), "cbd-input-", ext)
 	tempPath := tempFile.Name()
 
 	if err != nil {
@@ -229,4 +229,18 @@ func (c CompileJob) Compile() (result CompileResult, err error) {
 	result.ObjectCode, err = ioutil.ReadFile(outputPath)
 
 	return
+}
+
+// tempFileDir finds the most efficient temporary file directory on the platform
+func tempFileDir() string {
+	// Preferred Linux directory
+	// TODO: make this cross platform and check that device has the needed space
+	// before using it
+	dir := "/dev/shm"
+
+	if _, err := os.Stat(dir); err == nil {
+		return dir
+	} else {
+		return "/tmp"
+	}
 }
