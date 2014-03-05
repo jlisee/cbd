@@ -17,14 +17,13 @@ func main() {
 	// We have to parse the arguments manually because the default flag package
 	// stops parsing after positional args, and github.com/ogier/pflag errors out
 	// on unknown arguments.
-
 	b := cbd.ParseArgs(os.Args[2:])
 
 	// Dump arguments
-	fmt.Println("INPUTS:")
-	fmt.Println("  link command?:", b.LinkCommand)
-	fmt.Printf("  output path:  %s[%d]\n", b.Args[b.Oindex], b.Oindex)
-	fmt.Printf("  input path:   %s[%d]\n", b.Args[b.Iindex], b.Iindex)
+	// fmt.Println("INPUTS:")
+	// fmt.Println("  can distribute?:", b.Distributable)
+	// fmt.Printf("  output path:  %s[%d]\n", b.Output(), b.Oindex)
+	// fmt.Printf("  input path:   %s[%d]\n", b.Input(), b.Iindex)
 
 	// TODO: Add in a local compile fast past
 	if b.Distributable {

@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"math/big"
@@ -31,11 +30,11 @@ type ExecResult struct {
 // Executes, returning the stdout if the program fails (the return code is
 // ignored)
 func RunCmd(prog string, args []string) (result ExecResult, err error) {
-	fmt.Printf("Run: %s ", prog)
-	for _, arg := range args {
-		fmt.Printf("%s ", arg)
-	}
-	fmt.Println()
+	// fmt.Printf("Run: %s ", prog)
+	// for _, arg := range args {
+	// 	fmt.Printf("%s ", arg)
+	// }
+	// fmt.Println()
 
 	cmd := exec.Command(prog, args...)
 
