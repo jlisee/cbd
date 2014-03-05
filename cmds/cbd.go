@@ -13,7 +13,7 @@ func main() {
 
 	// Input flag parsing
 	var address string
-	daddress := "localhost:" + strconv.Itoa(cbd.Port)
+	daddress := "localhost:" + strconv.Itoa(cbd.DefaultPort)
 
 	var server bool
 

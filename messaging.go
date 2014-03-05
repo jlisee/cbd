@@ -81,7 +81,7 @@ type MessageConn struct {
 func NewTCPMessageConn(address string, d time.Duration) (*MessageConn, error) {
 	// Add default port if needed
 	if strings.Index(address, ":") < 0 {
-		address = address + ":" + strconv.Itoa(Port)
+		address = address + ":" + strconv.Itoa(DefaultPort)
 	}
 
 	// Make our connection

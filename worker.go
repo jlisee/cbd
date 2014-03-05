@@ -34,7 +34,7 @@ func NewWorker(laddr string, saddr string) (w *Worker, err error) {
 	// Parse out our port
 	parts := strings.Split(laddr, ":")
 
-	port := Port
+	port := DefaultPort
 
 	if len(parts) > 1 {
 		port, err = strconv.Atoi(parts[len(parts)-1])

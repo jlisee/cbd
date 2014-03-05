@@ -8,7 +8,7 @@ import (
 
 var (
 	// Port used for network communications
-	Port = 15796
+	DefaultPort = 15796
 )
 
 type Build struct {
