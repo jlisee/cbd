@@ -12,11 +12,11 @@ var (
 )
 
 type Build struct {
-	Args        []string // Command line arguments
-	Oindex      int      // Index of argument *before* the output file
-	Iindex      int      // Index of input file option
-	Cindex      int      // Index of "type" flag
-	LinkCommand bool
+	Args          []string // Command line arguments
+	Oindex        int      // Index of argument *before* the output file
+	Iindex        int      // Index of input file option
+	Cindex        int      // Index of "type" flag
+	Distributable bool     // A job we can distribute
 	// TODO: file type
 }
 
@@ -35,25 +35,33 @@ type CompileResult struct {
 
 // Returns the output path build job
 func (b Build) Output() string {
+	if b.Oindex < 0 || b.Oindex >= len(b.Args) {
+		return ""
+	}
+
 	return b.Args[b.Oindex]
 }
 
 // Return the input path for the build job
 func (b Build) Input() string {
+	if b.Iindex < 0 || b.Iindex >= len(b.Args) {
+		return ""
+	}
+
 	return b.Args[b.Iindex]
 }
 
 func ParseArgs(args []string) Build {
-	nolink := false
+	distributable := false
 
-	var outputIndex int
-	var inputIndex int
-	var cmdIndex int
+	outputIndex := -1
+	inputIndex := -1
+	cmdIndex := -1
 
 	for i, arg := range args {
 		//idx := i + 1
 		if arg == "-c" {
-			nolink = true
+			distributable = true
 			cmdIndex = i
 		}
 		if arg == "-o" {
@@ -66,11 +74,11 @@ func ParseArgs(args []string) Build {
 	}
 
 	b := Build{
-		Args:        args,
-		Oindex:      outputIndex,
-		Iindex:      inputIndex,
-		Cindex:      cmdIndex,
-		LinkCommand: !nolink,
+		Args:          args,
+		Oindex:        outputIndex,
+		Iindex:        inputIndex,
+		Cindex:        cmdIndex,
+		Distributable: distributable,
 	}
 
 	return b

@@ -33,10 +33,19 @@ func TestParseArgs(t *testing.T) {
 		ParseTestCase{
 			inputArgs: []string{"-c", "data/main.c", "-o", "main.o"},
 			b: Build{
-				Oindex:      3,
-				Iindex:      1,
-				Cindex:      0,
-				LinkCommand: false,
+				Oindex:        3,
+				Iindex:        1,
+				Cindex:        0,
+				Distributable: true,
+			},
+		},
+		ParseTestCase{
+			inputArgs: []string{"-dumpversion"},
+			b: Build{
+				Oindex:        -1,
+				Iindex:        -1,
+				Cindex:        -1,
+				Distributable: false,
 			},
 		},
 	}
@@ -69,12 +78,12 @@ func TestParseArgs(t *testing.T) {
 			t.Errorf("Input index wrong")
 		}
 
-		if "data/main.c" != b.Args[b.Iindex] {
+		if eb.Input() != b.Input() {
 			t.Errorf("Input path wrong")
 		}
 
 		// Now lets test the link command is properly recognized
-		if eb.LinkCommand != b.LinkCommand {
+		if eb.Distributable != b.Distributable {
 			t.Errorf("Should not be b a link command")
 		}
 	}

@@ -27,7 +27,7 @@ func main() {
 	fmt.Printf("  input path:   %s[%d]\n", b.Args[b.Iindex], b.Iindex)
 
 	// TODO: Add in a local compile fast past
-	if !b.LinkCommand {
+	if b.Distributable {
 		// Pre-process the file into a compile job
 		job, results, err := cbd.MakeCompileJob(compiler, b)
 
