@@ -22,6 +22,7 @@ type Build struct {
 
 // A job to be farmed out to our cluster
 type CompileJob struct {
+	Host     string // The host requesting it
 	Build    Build  // The commands to build it with
 	Input    []byte // The data to build
 	Compiler string // The compiler to run it with
@@ -164,6 +165,14 @@ func Compile(compiler string, b Build, input string) (resultPath string, result 
 // MakeCompileJob takes the requested Build, pre-processses the needed
 // file and returns a CompileJob with code.
 func MakeCompileJob(compiler string, b Build) (j CompileJob, results ExecResult, err error) {
+	// Grab hostname
+	hostname, err := os.Hostname()
+
+	if err != nil {
+		return j, results, err
+	}
+
+	// Preprocess the file
 	tempPreprocess, results, err := Preprocess(compiler, b)
 
 	if len(tempPreprocess) > 0 {
@@ -186,6 +195,7 @@ func MakeCompileJob(compiler string, b Build) (j CompileJob, results ExecResult,
 		Build:    b,
 		Input:    preData,
 		Compiler: compiler,
+		Host:     hostname,
 	}
 
 	return j, results, nil

@@ -129,6 +129,34 @@ func TestPreprocess(t *testing.T) {
 	}
 }
 
+func TestMakeCompileJob(t *testing.T) {
+	// Create our build job
+	b := ParseArgs(strings.Split("-c data/main.c -o main.o", " "))
+
+	j, result, err := MakeCompileJob("gcc", b)
+
+	if err != nil {
+		t.Errorf("MakeCompile returned error: %s (Output: %s)", err,
+			string(result.Output))
+	}
+
+	if result.Return != 0 {
+		t.Errorf("Preprocess returned: %d", result.Return)
+	}
+
+	// Now grab our hostname
+	hostname, err := os.Hostname()
+
+	if err != nil {
+		t.Error("Error getting hostname: ", err)
+	}
+
+	// Now check the job
+	if hostname != j.Host {
+		t.Errorf("Job hostname '%s' incorrect, not '%s'", j.Host, hostname)
+	}
+}
+
 // This test requires gcc to be installed
 func TestCompile(t *testing.T) {
 	// Create a temporary file and copy the C source code into that location
