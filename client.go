@@ -50,6 +50,10 @@ func findWorker(address string) (worker string, err error) {
 	// Connect to server
 	mc, err := NewTCPMessageConn(address, time.Duration(10)*time.Second)
 
+	if err != nil {
+		return
+	}
+
 	// Get hostname
 	hostname, err := os.Hostname()
 

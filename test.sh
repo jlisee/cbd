@@ -59,6 +59,38 @@ clean
 
 
 # ----------------------------------------------------------------------------
+# Server with no server
+# ----------------------------------------------------------------------------
+
+disp "[Dead server]"
+
+unset CBD_POTENTIAL_HOST
+export CBD_SERVER=":15800"
+
+cbdcc gcc -c data/main.c -o main.o
+cbdcc gcc main.o -o test-main
+checkout # Test the output
+
+clean
+
+
+# ----------------------------------------------------------------------------
+# Work with no worker
+# ----------------------------------------------------------------------------
+
+disp "[Direct dead worker test]"
+
+export CBD_POTENTIAL_HOST="localhost"
+unset CBD_SERVER
+
+cbdcc gcc -c data/main.c -o main.o
+cbdcc gcc main.o -o test-main
+checkout # Test the output
+
+clean
+
+
+# ----------------------------------------------------------------------------
 # Worker test
 # ----------------------------------------------------------------------------
 
@@ -70,6 +102,7 @@ d_pid=$!
 trap "kill -9 ${d_pid}" EXIT
 
 export CBD_POTENTIAL_HOST="localhost"
+unset CBD_SERVER
 
 cbdcc gcc -c data/main.c -o main.o
 cbdcc gcc main.o -o test-main
@@ -86,7 +119,7 @@ kill -9 ${d_pid} &> /dev/null
 # Now lets do again over with a server and a worker
 disp "[Server & worker test]"
 
-export CBD_POTENTIAL_HOST=''
+unset CBD_POTENTIAL_HOST
 export CBD_SERVER="localhost:15800"
 
 cbd -address $CBD_SERVER -server &
@@ -97,7 +130,7 @@ cbd -address ":15786" &
 d_pid=$!
 trap "kill -9 ${d_pid}" EXIT
 
-sleep 1
+sleep 1 # Needed hack
 
 cbdcc gcc -c data/main.c -o main.o
 cbdcc gcc main.o -o test-main
