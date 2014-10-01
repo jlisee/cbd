@@ -29,6 +29,7 @@ const (
 	WorkerRequestID
 	WorkerResponseID
 	WorkerStateID
+	MonitorRequestID
 	CompletedJobID
 )
 
@@ -38,6 +39,7 @@ var messageIDNames = [...]string{
 	"WorkerRequestID",
 	"WorkerResponseID",
 	"WorkerStateID",
+	"MonitorRequestID",
 	"CompletedJobID",
 }
 
@@ -139,6 +141,11 @@ func (mc MessageConn) Send(i interface{}) (err error) {
 		if err == nil {
 			return mc.enc.Encode(m)
 		}
+	case MonitorRequest:
+		err = mc.sendHeader(MonitorRequestID)
+		if err == nil {
+			return mc.enc.Encode(m)
+		}
 	case CompletedJob:
 		err = mc.sendHeader(CompletedJobID)
 		if err == nil {
@@ -185,6 +192,10 @@ func (mc MessageConn) Read() (MessageHeader, interface{}, error) {
 		var s WorkerState
 		err := mc.dec.Decode(&s)
 		return h, s, err
+	case MonitorRequestID:
+		var r MonitorRequest
+		err := mc.dec.Decode(&r)
+		return h, r, err
 	case CompletedJobID:
 		var c CompletedJob
 		err := mc.dec.Decode(&c)

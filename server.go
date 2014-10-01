@@ -13,7 +13,13 @@ import (
 	"time"
 )
 
-// WorkRequest is sent from the client to the server in order to find
+// MonitorRequest is sent from a client that wishes to be sent information
+// about the current jobs running on the build cluster.
+type MonitorRequest struct {
+	Host string
+}
+
+// WorkerRequest is sent from the client to the server in order to find
 // a worker to process a job
 type WorkerRequest struct {
 	Client string // Host request a worker
@@ -117,6 +123,16 @@ func (s *ServerState) handleConnection(conn *MessageConn) {
 		s.updateWorker(m)
 
 		s.handleWorkerConnection(conn)
+	case MonitorRequest:
+		// Create and register channel which receives information
+		c := make(chan CompletedJob)
+
+		s.completedJobs.addObs(m.Host, c)
+
+		// Step into our routine which shuffles messages from that channel into
+		// the provided connection
+		// TODO: a better identifier for this
+		s.handleMonitorConnection(conn, m.Host, c)
 	case CompletedJob:
 		s.completedJobs.jobsComplete <- m
 	default:
@@ -141,6 +157,20 @@ func (s *ServerState) handleWorkerConnection(conn *MessageConn) {
 		}
 
 		s.updateWorker(ws)
+	}
+}
+
+// handleMonitorConnection sends completed job information to any requested
+func (s *ServerState) handleMonitorConnection(conn *MessageConn, h string, cin chan CompletedJob) {
+	for j := range cin {
+		err := conn.Send(j)
+
+		// On an error we de-register and bail out
+		if err != nil {
+			log.Printf("Dropping monitor: %s Error: %s", h, err.Error())
+			s.completedJobs.removeObs(h)
+			break
+		}
 	}
 }
 

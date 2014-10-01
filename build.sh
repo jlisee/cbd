@@ -7,8 +7,9 @@ set -e
 function build() {
     go install
     go build cmds/cbdcc.go
+    go build cmds/cbdmon.go
     go build cmds/cbd.go
-    mv cbdcc cbd $GOPATH/bin
+    mv cbdcc cbdmon cbd $GOPATH/bin
 }
 
 
