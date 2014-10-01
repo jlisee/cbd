@@ -34,21 +34,27 @@ type WorkerState struct {
 }
 
 // ServerState is all the state of our server
+// TODO: consider some kind of channel system instead of a mutex to get
+// sync access to these data structures.
 type ServerState struct {
 	workers map[string]WorkerState // All the currently active workers
-	mutex   *sync.Mutex            // Protects shared access to our state
+	wmutex  *sync.Mutex            // Protects access to workers map
+
+	completedJobs *completedJobPublisher // Sends to multiple channels completion information
 }
 
 func NewServerState() *ServerState {
 	s := new(ServerState)
 	s.workers = make(map[string]WorkerState)
-	s.mutex = new(sync.Mutex)
+	s.wmutex = new(sync.Mutex)
+	s.completedJobs = newCompletedJobPublisher()
 
 	return s
 }
 
 // server accepts incoming connections
 func (s *ServerState) Serve(ln net.Listener) {
+	// Incoming connections
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -70,15 +76,15 @@ func (s *ServerState) updateWorker(u WorkerState) {
 	// in sync with our local clock
 	u.Updated = time.Now()
 
-	s.mutex.Lock()
+	s.wmutex.Lock()
 	s.workers[u.Host] = u
-	s.mutex.Unlock()
+	s.wmutex.Unlock()
 }
 
 // findWorker finds a free worker and returns it's host and port
 func (s *ServerState) findWorker() (string, int, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.wmutex.Lock()
+	defer s.wmutex.Unlock()
 
 	// For now just a simple linear search returning the first free
 	for _, state := range s.workers {
@@ -111,12 +117,15 @@ func (s *ServerState) handleConnection(conn *MessageConn) {
 		s.updateWorker(m)
 
 		s.handleWorkerConnection(conn)
+	case CompletedJob:
+		s.completedJobs.jobsComplete <- m
 	default:
 		log.Print("Un-handled message type: ", reflect.TypeOf(msg).Name())
 	}
 
 	if err != nil {
-		log.Print("Request error: ", err)
+		log.Printf("Request(%s) error: %s", reflect.TypeOf(msg).Name(),
+			err.Error())
 	}
 }
 

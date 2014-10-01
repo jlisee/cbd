@@ -1,6 +1,7 @@
 // Here we define the the light weight message system we use to communicate
 // between machines.  This implements a very standard length + type prefixed
-// message system.
+// message system. This has quite a bit of duplication that I can't figure out
+// to remove without my usual template hammer.
 //
 // Author: Joseph Lisee <jlisee@gmail.com>
 
@@ -28,6 +29,7 @@ const (
 	WorkerRequestID
 	WorkerResponseID
 	WorkerStateID
+	CompletedJobID
 )
 
 var messageIDNames = [...]string{
@@ -36,6 +38,7 @@ var messageIDNames = [...]string{
 	"WorkerRequestID",
 	"WorkerResponseID",
 	"WorkerStateID",
+	"CompletedJobID",
 }
 
 func (mID MessageID) String() string {
@@ -136,6 +139,11 @@ func (mc MessageConn) Send(i interface{}) (err error) {
 		if err == nil {
 			return mc.enc.Encode(m)
 		}
+	case CompletedJob:
+		err = mc.sendHeader(CompletedJobID)
+		if err == nil {
+			return mc.enc.Encode(m)
+		}
 	default:
 		return errors.New("Could not encode type: " + reflect.TypeOf(i).Name())
 	}
@@ -143,6 +151,8 @@ func (mc MessageConn) Send(i interface{}) (err error) {
 	return err
 }
 
+// Generic Read function makes it possible to read messages of different
+// types on the same pipe
 func (mc MessageConn) Read() (MessageHeader, interface{}, error) {
 	err := mc.setReadDeadline()
 
@@ -175,6 +185,10 @@ func (mc MessageConn) Read() (MessageHeader, interface{}, error) {
 		var s WorkerState
 		err := mc.dec.Decode(&s)
 		return h, s, err
+	case CompletedJobID:
+		var c CompletedJob
+		err := mc.dec.Decode(&c)
+		return h, c, err
 	default:
 		return h, nil, errors.New("Unknown message ID: " + h.ID.String())
 	}
@@ -289,4 +303,21 @@ func (mc MessageConn) ReadWorkerState() (s WorkerState, err error) {
 
 	err = mc.dec.Decode(&s)
 	return s, err
+}
+
+func (mc MessageConn) ReadCompletedJob() (c CompletedJob, err error) {
+	err = mc.setReadDeadline()
+
+	if err != nil {
+		return c, err
+	}
+
+	_, err = mc.readHeader(WorkerStateID)
+
+	if err != nil {
+		return c, err
+	}
+
+	err = mc.dec.Decode(&c)
+	return c, err
 }

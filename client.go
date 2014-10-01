@@ -38,8 +38,22 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 	}
 
 	// Build it locally if all else has failed
+	worker := address
+
 	if local {
 		cresults, err = job.Compile()
+
+		// Local build so we are building things
+		worker = job.Host
+	}
+
+	// Report to server if we have a connection
+	if len(server) > 0 {
+		errj := reportCompletion(server, worker, job)
+
+		if err != nil {
+			log.Print("Report job error: ", errj)
+		}
 	}
 
 	return cresults, err
@@ -76,6 +90,26 @@ func findWorker(address string) (worker string, err error) {
 
 	worker = r.Worker + ":" + strconv.Itoa(r.Port)
 	return worker, nil
+}
+
+// Reports the completion of the given job to the server
+func reportCompletion(address string, worker string, job CompileJob) error {
+	jc := CompletedJob{
+		Client: job.Host,
+		Worker: worker,
+	}
+
+	// Connect to server (short timeout here so we don't hold up the build)
+	mc, err := NewTCPMessageConn(address, time.Duration(1)*time.Second)
+
+	if err != nil {
+		return err
+	}
+
+	// Send completion
+	err = mc.Send(jc)
+
+	return err
 }
 
 // Build the given job on the remote host
