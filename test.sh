@@ -1,5 +1,11 @@
 #! /bin/bash
 
+# Current directory
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Pull in the build and clean functions
+source $DIR/build.sh
+
 # Exit on error
 set -e
 
@@ -33,11 +39,7 @@ go test
 
 # Build everything
 disp "[Build and install]"
-go install
-go build cmds/cbdcc.go
-go build cmds/cbd.go
-mv cbdcc cbd $GOPATH/bin
-
+build
 
 # ----------------------------------------------------------------------------
 # Local tests
