@@ -41,6 +41,16 @@ go test
 disp "[Build and install]"
 build
 
+# Make sure we don't have any other cbd processes hanging around
+cbd_pid=$(pgrep cbd; true)
+
+if [ "$cbd_pid" != "" ]; then
+    disp "[Test Check]"
+    echo "Error: cbd already running as pid: $cbd_pid"
+    exit 1
+fi
+
+
 # ----------------------------------------------------------------------------
 # Local tests
 # ----------------------------------------------------------------------------
