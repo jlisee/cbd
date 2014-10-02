@@ -30,7 +30,12 @@ Roadmap
 ========
 
  - Monitoring CLI program
+   - Ability to show all the servers currently running
+ - Measure the speed of workers
  - Auto-discovery of server
+ - More monitoring
+   - Maybe events for start of pre-process
+   - Start/Stop of data send
  - Centralized object file cache
  - Embedded web browser for monitoring GUI
 
