@@ -110,6 +110,8 @@ func reportCompletion(address string, worker string, j CompileJob, r CompileResu
 		CompileTime: d,
 	}
 
+	jc.computeCompileSpeed()
+
 	// Connect to server (short timeout here so we don't hold up the build)
 	mc, err := NewTCPMessageConn(address, time.Duration(1)*time.Second)
 

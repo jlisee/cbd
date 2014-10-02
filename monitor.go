@@ -16,6 +16,12 @@ type CompletedJob struct {
 	InputSize    int           // Bytes of source code compiled
 	OutputSize   int           // Bytes of object code produced
 	CompileTime  time.Duration // How long the job took to complete
+	CompileSpeed float64       // Speed rating used for the job
+}
+
+// We define the compile speed of a job based
+func (c *CompletedJob) computeCompileSpeed() {
+	c.CompileSpeed = float64(c.OutputSize) / c.CompileTime.Seconds() / 1024
 }
 
 // monitorDst represents a location to send job completions to
