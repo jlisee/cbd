@@ -24,6 +24,9 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 		}
 	}
 
+	// Get when we start building
+	start := time.Now()
+
 	// Try to build on the remote host if we have found one
 	if len(address) > 0 {
 		cresults, err = buildRemote(address, job)
@@ -49,7 +52,11 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 
 	// Report to server if we have a connection
 	if len(server) > 0 {
-		errj := reportCompletion(server, worker, job)
+		stop := time.Now()
+
+		duration := stop.Sub(start)
+
+		errj := reportCompletion(server, worker, job, cresults, duration)
 
 		if err != nil {
 			log.Print("Report job error: ", errj)
@@ -93,10 +100,14 @@ func findWorker(address string) (worker string, err error) {
 }
 
 // Reports the completion of the given job to the server
-func reportCompletion(address string, worker string, job CompileJob) error {
+func reportCompletion(address string, worker string, j CompileJob, r CompileResult, d time.Duration) error {
+
 	jc := CompletedJob{
-		Client: job.Host,
-		Worker: worker,
+		Client:      j.Host,
+		Worker:      worker,
+		InputSize:   len(j.Input),
+		OutputSize:  len(r.ObjectCode),
+		CompileTime: d,
 	}
 
 	// Connect to server (short timeout here so we don't hold up the build)

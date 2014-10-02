@@ -5,12 +5,17 @@
 
 package cbd
 
-import ()
+import (
+	"time"
+)
 
 // CompletedJob is one updated about a job completed on the cluster
 type CompletedJob struct {
-	Client string // Machine that requested the job
-	Worker string // Worker that build the job
+	Client       string        // Machine that requested the job
+	Worker       string        // Worker that build the job
+	InputSize    int           // Bytes of source code compiled
+	OutputSize   int           // Bytes of object code produced
+	CompileTime  time.Duration // How long the job took to complete
 }
 
 // monitorDst represents a location to send job completions to
