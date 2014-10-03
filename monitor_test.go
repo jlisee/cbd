@@ -5,44 +5,52 @@
 package cbd
 
 import (
+	"reflect"
 	"testing"
 )
 
 type TestListener struct {
-	res  []CompletedJob    // All jobs we got
-	jobs chan CompletedJob // Incoming jobs
-	done chan bool         // Signal when we got a job
-	run  bool
+	res     []CompletedJob   // All jobs we got
+	updates chan interface{} // Incoming Updates
+	done    chan bool        // Signal when we got a job
+	run     bool
 }
 
-func newListener() *TestListener {
+func newListener(t *testing.T) *TestListener {
 	l := new(TestListener)
-	l.jobs = make(chan CompletedJob)
+	l.updates = make(chan interface{})
 	l.done = make(chan bool)
 	l.run = true
 
-	l.runListener()
+	l.runListener(t)
 
 	return l
 }
 
-func (l *TestListener) runListener() {
+func (l *TestListener) runListener(t *testing.T) {
 	go func() {
 		for l.run {
-			completed := <-l.jobs
-			l.res = append(l.res, completed)
+			update := <-l.updates
+
+			switch u := update.(type) {
+			case CompletedJob:
+				l.res = append(l.res, u)
+			default:
+				t.Errorf("Did not understand update type: " + reflect.TypeOf(update).Name())
+			}
+
 			l.done <- true
 		}
 	}()
 }
 
 func TestCompletedJobPublisher(t *testing.T) {
-	p := newCompletedJobPublisher()
+	p := newUpdatePublisher()
 
 	// Add a listener
-	l1 := newListener()
+	l1 := newListener(t)
 
-	p.addObs("1", l1.jobs)
+	p.addObs("1", l1.updates)
 
 	// Publish something
 	j := CompletedJob{Client: "A", Worker: "B"}
@@ -60,9 +68,9 @@ func TestCompletedJobPublisher(t *testing.T) {
 	}
 
 	// Add another
-	l2 := newListener()
+	l2 := newListener(t)
 
-	p.addObs("2", l2.jobs)
+	p.addObs("2", l2.updates)
 
 	// Publish another job
 	j = CompletedJob{Client: "A", Worker: "C"}

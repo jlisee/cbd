@@ -46,14 +46,14 @@ type ServerState struct {
 	workers map[string]WorkerState // All the currently active workers
 	wmutex  *sync.Mutex            // Protects access to workers map
 
-	completedJobs *completedJobPublisher // Sends to multiple channels completion information
+	monitorUpdates *updatePublisher // Sends to multiple channels completion information
 }
 
 func NewServerState() *ServerState {
 	s := new(ServerState)
 	s.workers = make(map[string]WorkerState)
 	s.wmutex = new(sync.Mutex)
-	s.completedJobs = newCompletedJobPublisher()
+	s.monitorUpdates = newUpdatePublisher()
 
 	return s
 }
@@ -125,16 +125,16 @@ func (s *ServerState) handleConnection(conn *MessageConn) {
 		s.handleWorkerConnection(conn)
 	case MonitorRequest:
 		// Create and register channel which receives information
-		c := make(chan CompletedJob)
+		u := make(chan interface{})
 
-		s.completedJobs.addObs(m.Host, c)
+		s.monitorUpdates.addObs(m.Host, u)
 
 		// Step into our routine which shuffles messages from that channel into
 		// the provided connection
 		// TODO: a better identifier for this
-		s.handleMonitorConnection(conn, m.Host, c)
+		s.handleMonitorConnection(conn, m.Host, u)
 	case CompletedJob:
-		s.completedJobs.jobsComplete <- m
+		s.monitorUpdates.updates <- m
 	default:
 		log.Print("Un-handled message type: ", reflect.TypeOf(msg).Name())
 	}
@@ -161,14 +161,14 @@ func (s *ServerState) handleWorkerConnection(conn *MessageConn) {
 }
 
 // handleMonitorConnection sends completed job information to any requested
-func (s *ServerState) handleMonitorConnection(conn *MessageConn, h string, cin chan CompletedJob) {
+func (s *ServerState) handleMonitorConnection(conn *MessageConn, h string, cin chan interface{}) {
 	for j := range cin {
 		err := conn.Send(j)
 
 		// On an error we de-register and bail out
 		if err != nil {
 			log.Printf("Dropping monitor: %s Error: %s", h, err.Error())
-			s.completedJobs.removeObs(h)
+			s.monitorUpdates.removeObs(h)
 			break
 		}
 	}

@@ -27,18 +27,18 @@ func (c *CompletedJob) computeCompileSpeed() {
 // monitorDst represents a location to send job completions to
 type monitorDst struct {
 	host string
-	ch   chan CompletedJob
+	ch   chan interface{}
 }
 
-type completedJobPublisher struct {
-	jobsComplete chan CompletedJob // Completed jobs
-	newMonitor   chan monitorDst   // Channel to send new monitors
-	stopMonitor  chan string       // Channel used to stop a monitor
+type updatePublisher struct {
+	updates     chan interface{} // Completed jobs
+	newMonitor  chan monitorDst  // Channel to send new monitors
+	stopMonitor chan string      // Channel used to stop a monitor
 }
 
-func newCompletedJobPublisher() *completedJobPublisher {
-	p := new(completedJobPublisher)
-	p.jobsComplete = make(chan CompletedJob)
+func newUpdatePublisher() *updatePublisher {
+	p := new(updatePublisher)
+	p.updates = make(chan interface{})
 	p.newMonitor = make(chan monitorDst)
 	p.stopMonitor = make(chan string)
 
@@ -47,25 +47,25 @@ func newCompletedJobPublisher() *completedJobPublisher {
 	return p
 }
 
-func (p *completedJobPublisher) addObs(h string, c chan CompletedJob) {
+func (p *updatePublisher) addObs(h string, c chan interface{}) {
 	p.newMonitor <- monitorDst{host: h, ch: c}
 }
 
-func (p *completedJobPublisher) removeObs(h string) {
+func (p *updatePublisher) removeObs(h string) {
 	p.stopMonitor <- h
 }
 
-func (p *completedJobPublisher) publish(j CompletedJob) {
-	p.jobsComplete <- j
+func (p *updatePublisher) publish(j interface{}) {
+	p.updates <- j
 }
 
-func (p *completedJobPublisher) handlePublish() {
-	obs := make(map[string]chan CompletedJob)
+func (p *updatePublisher) handlePublish() {
+	obs := make(map[string]chan interface{})
 	more := true
 
 	for more {
 		// Read in new jobs and update observers map as needed
-		var cj CompletedJob
+		var cj interface{}
 
 		select {
 		case mDst := <-p.newMonitor:
@@ -75,7 +75,7 @@ func (p *completedJobPublisher) handlePublish() {
 			// Remove destination
 			delete(obs, h)
 
-		case cj, more = <-p.jobsComplete:
+		case cj, more = <-p.updates:
 			// Send to all channels that are ready
 			for _, dst := range obs {
 				select {
