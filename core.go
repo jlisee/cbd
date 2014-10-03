@@ -9,6 +9,8 @@ import (
 var (
 	// Port used for network communications
 	DefaultPort = 15796
+	// Whether or not we have debug logging on
+	DebugLogging = false
 )
 
 type Build struct {

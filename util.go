@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"io"
 	"io/ioutil"
+	"log"
 	"math/big"
 	"os"
 	"os/exec"
@@ -143,4 +144,18 @@ func GetLoadAverage() (float64, error) {
 	}
 
 	return load, nil
+}
+
+// Make this log statement only when debugging logging is on
+func DebugPrint(v ...interface{}) {
+	if DebugLogging {
+		log.Print(v...)
+	}
+}
+
+// Printf style debug logging
+func DebugPrintf(format string, v ...interface{}) {
+	if DebugLogging {
+		log.Printf(format, v...)
+	}
 }
