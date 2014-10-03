@@ -39,6 +39,11 @@ type WorkerState struct {
 	Updated  time.Time // When the state was last updated
 }
 
+// List of all currently active works
+type WorkerStateList struct {
+	Workers []WorkerState
+}
+
 // ServerState is all the state of our server
 // TODO: consider some kind of channel system instead of a mutex to get
 // sync access to these data structures.
@@ -54,6 +59,9 @@ func NewServerState() *ServerState {
 	s.workers = make(map[string]WorkerState)
 	s.wmutex = new(sync.Mutex)
 	s.monitorUpdates = newUpdatePublisher()
+
+	// Start sending worker updates at 1Hz
+	go s.sendWorkState(1)
 
 	return s
 }
@@ -190,4 +198,28 @@ func (s *ServerState) processWorkerRequest(conn *MessageConn) error {
 		Port:   port,
 	}
 	return conn.Send(r)
+}
+
+func (s *ServerState) sendWorkState(rate float64) error {
+	// Define sleep based our rate
+	msSleep := 1 / rate * 1000
+	d := time.Duration(int64(msSleep)) * time.Millisecond
+
+	for {
+		time.Sleep(d)
+
+		// Copy list into message
+		// TODO: maybe reduce copying here?
+		var l WorkerStateList
+
+		s.wmutex.Lock()
+		for _, state := range s.workers {
+			l.Workers = append(l.Workers, state)
+		}
+		s.wmutex.Unlock()
+
+		// Send out update
+		s.monitorUpdates.updates <- l
+
+	}
 }

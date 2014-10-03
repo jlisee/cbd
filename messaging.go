@@ -31,6 +31,7 @@ const (
 	WorkerStateID
 	MonitorRequestID
 	CompletedJobID
+	WorkerStateListID
 )
 
 var messageIDNames = [...]string{
@@ -41,6 +42,7 @@ var messageIDNames = [...]string{
 	"WorkerStateID",
 	"MonitorRequestID",
 	"CompletedJobID",
+	"WorkerStateListID",
 }
 
 func (mID MessageID) String() string {
@@ -151,6 +153,11 @@ func (mc MessageConn) Send(i interface{}) (err error) {
 		if err == nil {
 			return mc.enc.Encode(m)
 		}
+	case WorkerStateList:
+		err = mc.sendHeader(WorkerStateListID)
+		if err == nil {
+			return mc.enc.Encode(m)
+		}
 	default:
 		return errors.New("Could not encode type: " + reflect.TypeOf(i).Name())
 	}
@@ -200,6 +207,10 @@ func (mc MessageConn) Read() (MessageHeader, interface{}, error) {
 		var c CompletedJob
 		err := mc.dec.Decode(&c)
 		return h, c, err
+	case WorkerStateListID:
+		var l WorkerStateList
+		err := mc.dec.Decode(&l)
+		return h, l, err
 	default:
 		return h, nil, errors.New("Unknown message ID: " + h.ID.String())
 	}

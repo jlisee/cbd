@@ -29,15 +29,23 @@ Now run your build tool as normal.
 Roadmap
 ========
 
- - Monitoring CLI program
-   - Ability to show all the servers currently running
- - Measure the speed of workers
+ - Use worker speed to distribute jobs
  - Auto-discovery of server
+ - Combine everything into one exe for easier useage
  - More monitoring
    - Maybe events for start of pre-process
    - Start/Stop of data send
  - Centralized object file cache
  - Embedded web browser for monitoring GUI
+
+
+TODO
+=====
+
+ - Debug log for for the cbdcc program
+ - Workers should chose their port automatically
+ - Everywhere we use CBD_SERVER we should accept a command line argument
+ - Worker updates to monitoring programs should be on-demand
 
 
 Development

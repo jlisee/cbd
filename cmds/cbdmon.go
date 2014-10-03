@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/jlisee/cbd"
 	"os"
+	"reflect"
 	"time"
 )
 
@@ -63,17 +64,32 @@ func connect(address string) (*cbd.MessageConn, error) {
 // Run forever reporting, return error if something goes wrong
 func report(mc *cbd.MessageConn) error {
 	for {
-		cj, err := mc.ReadCompletedJob()
+		_, i, err := mc.Read()
 
 		if err != nil {
 			// TODO: check for stale data
 			return err
 		}
 
-		// Final output
-		// id?  Preprocess/Compile    file.cpp                     server[core#]
+		switch m := i.(type) {
+		case cbd.CompletedJob:
+			fmt.Printf("%s: finished job in: %.3fs (Speed: %.0f)\n", m.Worker,
+				m.CompileTime.Seconds(), m.CompileSpeed)
 
-		fmt.Printf("%s: finished job in: %.3fs (Speed: %.0f)\n", cj.Worker,
-			cj.CompileTime.Seconds(), cj.CompileSpeed)
+		case cbd.WorkerStateList:
+			// Final output
+			// id?  Preprocess/Compile    file.cpp                     server[core#]
+
+			fmt.Printf("[")
+			for _, state := range m.Workers {
+				// element is the element from someSlice for where we are
+				fmt.Printf("%s[%d|%d] ", state.Host, state.Load, state.Capacity)
+			}
+			fmt.Printf("]\n")
+
+		default:
+			fmt.Printf("ERROR, unknown message type: %s\n",
+				reflect.TypeOf(i).Name())
+		}
 	}
 }

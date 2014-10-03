@@ -94,6 +94,8 @@ func TestServerWorkerTracking(t *testing.T) {
 	}
 }
 
+// TODO: a test for worker updates once they are on demand
+
 // TODO: we should figure out how to test monitoring here
 
 //func
