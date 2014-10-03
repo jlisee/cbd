@@ -5,13 +5,36 @@ set -e
 
 # Clean up initial files
 function build() {
+    local EXTRA_FLAGS=""
+    local OPTIND=1
+    local DESTDIR=$GOPATH/bin
+
+    while getopts "s3" o; do
+        case "${o}" in
+            # Activate static builds
+            s)
+                export CGO_ENABLED=0
+                EXTRA_FLAGS="-a $EXTRA_FLAGS"
+                DESTDIR=$GOPATH/bin/linux32
+                ;;
+            # Cross build for 32 bit linux instead
+            3)
+                export GOOS=linux
+                export GOARCH=386
+                ;;
+        esac
+    done
+
+
     local start=$(date +%s.%N)
 
     go install
-    go build cmds/cbdcc.go
-    go build cmds/cbdmon.go
-    go build cmds/cbd.go
-    mv cbdcc cbdmon cbd $GOPATH/bin
+    go build $EXTRA_FLAGS cmds/cbdcc.go
+    go build $EXTRA_FLAGS cmds/cbdmon.go
+    go build $EXTRA_FLAGS cmds/cbd.go
+
+    mkdir -p $DESTDIR
+    mv cbdcc cbdmon cbd $DESTDIR
 
     local end=$(date +%s.%N)
 
@@ -25,4 +48,23 @@ if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     return
 fi
 
-build
+# Parse our command line arguments
+OPTIND=1
+crosscompile=0
+
+while getopts "h?c" opt; do
+    case "$opt" in
+    h|\?)
+        echo "-c for static linux32 cross compile"
+        exit 0
+        ;;
+    c)  crosscompile=1
+        ;;
+    esac
+done
+
+if [[ $crosscompile == 0 ]]; then
+    build
+else
+    build -s -3
+fi
