@@ -68,12 +68,16 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 
 // findWorker uses a central server to find the desired worker
 func findWorker(address string) (worker string, err error) {
+	DebugPrint("Finding worker server: ", address)
+
 	// Connect to server
 	mc, err := NewTCPMessageConn(address, time.Duration(10)*time.Second)
 
 	if err != nil {
 		return
 	}
+
+	DebugPrint("  Connected")
 
 	// Get hostname
 	hostname, err := os.Hostname()
@@ -96,6 +100,9 @@ func findWorker(address string) (worker string, err error) {
 	}
 
 	worker = r.Worker + ":" + strconv.Itoa(r.Port)
+
+	DebugPrint("Using worker: ", worker)
+
 	return worker, nil
 }
 
@@ -127,6 +134,8 @@ func reportCompletion(address string, worker string, j CompileJob, r CompileResu
 
 // Build the given job on the remote host
 func buildRemote(address string, job CompileJob) (CompileResult, error) {
+	DebugPrint("Building on worker: ", address)
+
 	var result CompileResult
 
 	// Connect to the remote host so we can have it build our file
@@ -135,6 +144,8 @@ func buildRemote(address string, job CompileJob) (CompileResult, error) {
 	if err != nil {
 		return result, err
 	}
+
+	DebugPrint("  Connected")
 
 	// Send the build job
 	mc.Send(job)
@@ -145,6 +156,8 @@ func buildRemote(address string, job CompileJob) (CompileResult, error) {
 	if err != nil {
 		return result, err
 	}
+
+	DebugPrint("Build complete")
 
 	return result, nil
 }

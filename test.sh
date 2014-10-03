@@ -69,6 +69,31 @@ clean
 
 
 # ----------------------------------------------------------------------------
+# Make sure logging works!
+# ----------------------------------------------------------------------------
+
+TMPLOGDIR=`mktemp -d`
+trap "rm -rf $TMPLOGDIR" EXIT
+
+export CBD_LOGFILE=$TMPLOGDIR/cbd.log
+
+cbdcc gcc -c data/main.c -o main.o
+cbdcc gcc main.o -o test-main
+checkout # Test the output
+
+LOG_LENGTH=$(wc -l $TMPLOGDIR/cbd.log | cut -d " " -f1)
+if [ "$LOG_LENGTH" -lt "7" ]; then
+    echo "ERROR: Log too short, contents follow:"
+    echo
+    cat $TMPLOGDIR/cbd.log
+    exit 1
+fi
+
+# Clean up
+clean
+
+
+# ----------------------------------------------------------------------------
 # Server with no server
 # ----------------------------------------------------------------------------
 

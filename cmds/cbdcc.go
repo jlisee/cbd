@@ -7,6 +7,8 @@ import (
 	"os"
 )
 
+var ()
+
 func main() {
 	// Pull of the first argument and make it our compiler (later make this a
 	// just a configuration setting)
@@ -17,11 +19,28 @@ func main() {
 	// on unknown arguments.
 	b := cbd.ParseArgs(os.Args[2:])
 
+	// Setup logging if needed
+	logpath := os.Getenv("CBD_LOGFILE")
+
+	if len(logpath) > 0 {
+		// Open the log file for appending
+		f, err := os.OpenFile(logpath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		defer f.Close()
+
+		log.SetOutput(f)
+		log.Print("ARGS: ", os.Args[2:])
+		log.Printf("  Distribute?: %t", b.Distributable)
+		log.Printf("  Output path:  %s[%d]\n", b.Output(), b.Oindex)
+		log.Printf("  Input path:   %s[%d]\n", b.Input(), b.Iindex)
+
+		cbd.DebugLogging = true
+	}
 	// Dump arguments
-	// fmt.Println("INPUTS:")
-	// fmt.Println("  can distribute?:", b.Distributable)
-	// fmt.Printf("  output path:  %s[%d]\n", b.Output(), b.Oindex)
-	// fmt.Printf("  input path:   %s[%d]\n", b.Input(), b.Iindex)
 
 	// TODO: Add in a local compile fast past
 	if b.Distributable {
@@ -30,6 +49,7 @@ func main() {
 
 		if err != nil {
 			fmt.Print(string(results.Output))
+			cbd.DebugPrint("Preprocess Error: ", string(results.Output))
 			os.Exit(results.Return)
 		}
 
@@ -38,6 +58,7 @@ func main() {
 
 		if err != nil || cresults.Return != 0 {
 			fmt.Print(string(cresults.Output))
+			cbd.DebugPrint("Build Error: ", string(cresults.Output))
 			os.Exit(cresults.Return)
 		}
 
@@ -56,12 +77,17 @@ func main() {
 			log.Fatal(err)
 		}
 
+		cbd.DebugPrint("Remote Success")
+
 	} else {
 		results, err := cbd.RunCmd(compiler, os.Args[2:])
 
 		if err != nil {
 			fmt.Print(string(results.Output))
+			cbd.DebugPrint("Local Error: ", string(results.Output))
 			os.Exit(results.Return)
 		}
+
+		cbd.DebugPrint("Success")
 	}
 }

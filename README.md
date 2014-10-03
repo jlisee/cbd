@@ -23,7 +23,8 @@ Use the client program in place of gcc and g++:
     export CC='cbdcc gcc'
     export CXX='cbdcc g++'
 
-Now run your build tool as normal.
+Now run your build tool as normal.  If you set CBD_LOGFILE to point to a
+file, cbdcc will write verbose debug logging statements their.
 
 
 Roadmap
@@ -42,7 +43,7 @@ Roadmap
 TODO
 =====
 
- - Debug log for for the cbdcc program
+ - Prune missing workers, and ones that give errors
  - Workers should chose their port automatically
  - Everywhere we use CBD_SERVER we should accept a command line argument
  - Worker updates to monitoring programs should be on-demand
