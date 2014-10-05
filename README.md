@@ -43,6 +43,7 @@ Roadmap
 TODO
 =====
 
+ - Use worker IP addresses to identify themselves not hostnames
  - Prune missing workers, and ones that give errors
  - Workers should chose their port automatically
  - Everywhere we use CBD_SERVER we should accept a command line argument

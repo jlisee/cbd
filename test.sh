@@ -9,9 +9,13 @@ source $DIR/build.sh
 # Exit on error
 set -e
 
-# Clean up initial files
-function clean() {
+# Clean up initial files, and kill all background jobs
+function clean_up() {
     rm -f test-main main.o cbd cbd.test
+    JOBS=$(jobs -p)
+    if [ "$JOBS" != "" ]; then
+        kill -9 $(jobs -p)
+    fi
 }
 
 function checkout() {
@@ -31,7 +35,7 @@ function disp() {
     echo $*
 }
 
-clean
+clean_up
 
 # Run tests
 disp "[Running tests]"
@@ -65,7 +69,7 @@ cbdcc gcc main.o -o test-main
 checkout # Test the output
 
 # Clean up
-clean
+clean_up
 
 
 # ----------------------------------------------------------------------------
@@ -90,7 +94,7 @@ if [ "$LOG_LENGTH" -lt "7" ]; then
 fi
 
 # Clean up
-clean
+clean_up
 
 
 # ----------------------------------------------------------------------------
@@ -106,7 +110,7 @@ cbdcc gcc -c data/main.c -o main.o
 cbdcc gcc main.o -o test-main
 checkout # Test the output
 
-clean
+clean_up
 
 
 # ----------------------------------------------------------------------------
@@ -122,7 +126,7 @@ cbdcc gcc -c data/main.c -o main.o
 cbdcc gcc main.o -o test-main
 checkout # Test the output
 
-clean
+clean_up
 
 
 # ----------------------------------------------------------------------------
@@ -133,8 +137,6 @@ clean
 disp "[Direct worker test]"
 
 cbd &
-d_pid=$!
-trap "kill -9 ${d_pid}" EXIT
 
 export CBD_POTENTIAL_HOST="localhost"
 unset CBD_SERVER
@@ -143,8 +145,7 @@ cbdcc gcc -c data/main.c -o main.o
 cbdcc gcc main.o -o test-main
 checkout # Test the output
 
-clean
-kill -9 ${d_pid} &> /dev/null
+clean_up
 
 
 # ----------------------------------------------------------------------------
@@ -158,12 +159,8 @@ unset CBD_POTENTIAL_HOST
 export CBD_SERVER="localhost:15800"
 
 cbd -address $CBD_SERVER -server &
-a_pid=$!
-trap "kill -9 ${a_pid}" EXIT
 
 cbd -address ":15786" &
-d_pid=$!
-trap "kill -9 ${d_pid}" EXIT
 
 sleep 1 # Needed hack
 
@@ -171,4 +168,4 @@ cbdcc gcc -c data/main.c -o main.o
 cbdcc gcc main.o -o test-main
 checkout # Test the output
 
-clean
+clean_up
