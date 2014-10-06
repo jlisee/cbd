@@ -2,6 +2,8 @@ package cbd
 
 import (
 	//	"bytes"
+	"fmt"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -14,6 +16,80 @@ type WorkerTestCase struct {
 	error  bool
 }
 
+// A channel based deadline reader writer
+type ChannelReadWriter struct {
+	bytes chan byte // Channels bytes come in and out on
+	cl    chan bool // Used to signal the channel closed
+}
+
+func newChannelReadWriter() *ChannelReadWriter {
+	// This is a huge back, but we need to set the this to at least more than
+	// two so our channel based IO Reader/Writer works. This is because we have
+	// the reader and the writer directly access the same channel. (putting a
+	// buffer in their would probably be better)
+	maxProcs := runtime.GOMAXPROCS(0)
+	if maxProcs < 2 {
+		runtime.GOMAXPROCS(2)
+	}
+
+	cr := new(ChannelReadWriter)
+
+	cr.bytes = make(chan byte)
+	cr.cl = make(chan bool)
+
+	return cr
+}
+
+// Read data until there is nothing in the channel
+func (s *ChannelReadWriter) Read(p []byte) (n int, err error) {
+	n = 0
+	err = nil
+
+	for n = 0; n < len(p); {
+		done := false
+
+		select {
+		case b := <-s.bytes:
+			p[n] = b
+			n++
+		case _ = <-s.cl:
+			err = fmt.Errorf("Channel closed")
+		default:
+			done = true
+		}
+
+		if done {
+			break
+		}
+	}
+
+	return n, err
+}
+
+// Write each byte into the channel
+func (s *ChannelReadWriter) Write(p []byte) (n int, err error) {
+	for _, b := range p {
+		s.bytes <- b
+	}
+
+	return len(p), nil
+}
+
+func (s *ChannelReadWriter) Close() {
+	s.cl <- true
+}
+
+func (s *ChannelReadWriter) SetReadDeadline(t time.Time) error {
+	// Do nothing
+	return nil
+}
+
+func (s *ChannelReadWriter) SetWriteDeadline(t time.Time) error {
+	// Do nothing
+	return nil
+}
+
+// Our tests
 func TestServerWorkerTracking(t *testing.T) {
 	s := NewServerState()
 
@@ -94,7 +170,59 @@ func TestServerWorkerTracking(t *testing.T) {
 	}
 }
 
-// TODO: a test for worker updates once they are on demand
+// Make sure we drop a worker after a connection is severed
+func TestWorkerDrop(t *testing.T) {
+	// Start up server listening on our channel based connection
+	s := NewServerState()
+
+	conn := newChannelReadWriter()
+	mc := NewMessageConn(conn, time.Duration(10)*time.Second)
+
+	go s.handleConnection(mc)
+
+	// Now lets connect a worker
+	ws := WorkerState{
+		Host:     "smith",
+		Port:     56,
+		Capacity: 1,
+		Load:     0,
+	}
+
+	mc.Send(ws)
+
+	// We block until we are able to find a worker, which means our connection
+	// was successful
+	var host string
+
+	for {
+		var err error
+
+		host, _, err = s.findWorker()
+
+		if err == nil {
+			break
+		}
+	}
+
+	// Make sure we have the right host back
+	if host != "smith" {
+		t.Error("Bad worker")
+	}
+
+	// Now lets close the connection which should drop the worker
+	conn.Close()
+
+	// Now lets wait for that drop
+	for {
+		var err error
+
+		_, _, err = s.findWorker()
+
+		if err != nil {
+			break
+		}
+	}
+}
 
 // TODO: we should figure out how to test monitoring here
 

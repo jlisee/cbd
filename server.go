@@ -95,6 +95,13 @@ func (s *ServerState) updateWorker(u WorkerState) {
 	s.wmutex.Unlock()
 }
 
+// Remove the worker from the current set of workers
+func (s *ServerState) removeWorker(h string) {
+	s.wmutex.Lock()
+	defer s.wmutex.Unlock()
+
+	delete(s.workers, h)
+}
 // findWorker finds a free worker and returns it's host and port
 func (s *ServerState) findWorker() (string, int, error) {
 	s.wmutex.Lock()
@@ -130,7 +137,7 @@ func (s *ServerState) handleConnection(conn *MessageConn) {
 		// Push update and then start continously handling the worker connection
 		s.updateWorker(m)
 
-		s.handleWorkerConnection(conn)
+		s.handleWorkerConnection(conn, m)
 	case MonitorRequest:
 		// Create and register channel which receives information
 		u := make(chan interface{})
@@ -155,11 +162,14 @@ func (s *ServerState) handleConnection(conn *MessageConn) {
 
 // handleWorkerConnection continously grabs updates from one worker
 // and sends updates the server state
-func (s *ServerState) handleWorkerConnection(conn *MessageConn) {
+func (s *ServerState) handleWorkerConnection(conn *MessageConn, is WorkerState) {
 	for {
 		ws, err := conn.ReadWorkerState()
 
 		if err != nil {
+			// Drop missing worker
+			s.removeWorker(is.Host)
+
 			log.Print("Error reading worker state: ", err)
 			break
 		}
