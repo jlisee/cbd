@@ -4,6 +4,7 @@
 package cbd
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -38,6 +39,13 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 		}
 	} else {
 		local = true
+	}
+
+	// Disable local builds when in our special test mode
+	no_local := os.Getenv("CBD_NO_LOCAL")
+
+	if local && no_local == "yes" {
+		return cresults, fmt.Errorf("Can't find worker")
 	}
 
 	// Build it locally if all else has failed

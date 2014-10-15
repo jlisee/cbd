@@ -153,10 +153,12 @@ clean_up
 # Server test
 # ----------------------------------------------------------------------------
 
-# Now lets do again over with a server and a worker
+# Now lets do again over with a server and a worker, we also make sure no
+# local builds can happen
 disp "[Server & worker test]"
 
 export CBD_SERVER="localhost:15800"
+export CBD_NO_LOCAL="yes"
 
 cbd -address $CBD_SERVER -server &
 
