@@ -92,6 +92,7 @@ func NewTCPMessageConn(address string, d time.Duration) (*MessageConn, error) {
 	}
 
 	// Make our connection
+	DebugPrint("CONN:, trying to connect to ", address)
 	conn, err := net.Dial("tcp", address)
 
 	if err != nil {

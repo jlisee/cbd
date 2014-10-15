@@ -34,10 +34,17 @@ func NewWorker(port int, saddr string) (w *Worker, err error) {
 // Serve listens for incoming build requests connections and spawns
 // goroutines to handle them as needed.  If we have a server address
 // it will send status updates there as well.
-func (w *Worker) Serve(ln net.Listener) {
+func (w *Worker) Serve(ln net.Listener) error {
+	// Get IP addresses on the machine
+	addrs, err := getLocalIPAddrs()
+
+	if err != nil {
+		return err
+	}
+
 	// Start update goroutine if present
 	if len(w.saddr) > 0 {
-		go w.updateServer()
+		go w.updateServer(addrs)
 	}
 
 	for {
@@ -78,7 +85,7 @@ func (w *Worker) handleRequest(conn DeadlineReadWriter) {
 
 // updateServer will do it's best to maintain a connection to the main
 // server, and send it WorkerState updates
-func (w *Worker) updateServer() {
+func (w *Worker) updateServer(addrs []net.IPNet) {
 	// How often we try to establish a connection
 	interval := time.Duration(1) * time.Second
 
@@ -91,8 +98,11 @@ func (w *Worker) updateServer() {
 
 	for {
 		// Open up
+		DebugPrint("  Connecting to ", w.saddr)
+
 		mc, err := NewTCPMessageConn(w.saddr, time.Duration(10)*time.Second)
 
+		DebugPrint("  Connected!")
 		if err != nil {
 			log.Print("Error connecting to server: ", err)
 			time.Sleep(interval)
@@ -100,7 +110,7 @@ func (w *Worker) updateServer() {
 		}
 
 		// Send updates
-		err = w.sendWorkerState(mc, hostname)
+		err = w.sendWorkerState(mc, hostname, addrs)
 
 		if err != nil {
 			log.Print("Error sending message to server: ", err)
@@ -112,7 +122,7 @@ func (w *Worker) updateServer() {
 
 // sendWorkerState sends updates to our server until the connection
 // fails
-func (w *Worker) sendWorkerState(mc *MessageConn, host string) error {
+func (w *Worker) sendWorkerState(mc *MessageConn, host string, addrs []net.IPNet) error {
 	// Get capacity
 	capacity := runtime.NumCPU()
 
@@ -127,6 +137,7 @@ func (w *Worker) sendWorkerState(mc *MessageConn, host string) error {
 		// Update the state with the latest information
 		ws := WorkerState{
 			Host:     host,
+			Addrs:    addrs,
 			Port:     w.port,
 			Capacity: capacity,
 			Load:     int(math.Ceil(load)),

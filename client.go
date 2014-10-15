@@ -94,9 +94,17 @@ func findWorker(address string) (worker string, err error) {
 		return
 	}
 
+	// Get IP addresses on the machine
+	addrs, err := getLocalIPAddrs()
+
+	if err != nil {
+		return
+	}
+
 	// Send our request
 	rq := WorkerRequest{
 		Client: hostname,
+		Addrs:  addrs,
 	}
 	mc.Send(rq)
 
@@ -107,9 +115,9 @@ func findWorker(address string) (worker string, err error) {
 		return
 	}
 
-	worker = r.Worker + ":" + strconv.Itoa(r.Port)
+	worker = r.Address.IP.String() + ":" + strconv.Itoa(r.Port)
 
-	DebugPrint("Using worker: ", worker)
+	DebugPrintf("Using worker: %s (%s)", r.Host, worker)
 
 	return worker, nil
 }

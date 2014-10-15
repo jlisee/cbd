@@ -3,6 +3,7 @@ package cbd
 import (
 	//	"bytes"
 	"fmt"
+	"net"
 	"runtime"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ type WorkerTestCase struct {
 	port   int
 	empty  bool
 	error  bool
+	addrs  []net.IPNet
 }
 
 // A channel based deadline reader writer
@@ -101,7 +103,10 @@ func TestServerWorkerTracking(t *testing.T) {
 		},
 		WorkerTestCase{
 			update: WorkerState{
-				Host:     "smith",
+				Host: "smith",
+				Addrs: []net.IPNet{
+					{net.IPv4(192, 1, 1, 1), net.IPv4Mask(255, 255, 255, 0)},
+				},
 				Port:     56,
 				Capacity: 5,
 				Load:     2,
@@ -110,6 +115,9 @@ func TestServerWorkerTracking(t *testing.T) {
 			port:  56,
 			empty: false,
 			error: false,
+			addrs: []net.IPNet{
+				{net.IPv4(192, 1, 1, 2), net.IPv4Mask(255, 255, 255, 0)},
+			},
 		},
 	}
 
@@ -118,7 +126,8 @@ func TestServerWorkerTracking(t *testing.T) {
 			s.updateWorker(u.update)
 		}
 
-		host, port, err := s.findWorker()
+		// TODO: don't ignore address
+		host, _, port, err := s.findWorker(u.addrs)
 
 		// Test one where expect nothing back
 		if u.error {
@@ -146,7 +155,9 @@ func TestServerWorkerTracking(t *testing.T) {
 		var network MockConn
 		mc := NewMessageConn(&network, time.Duration(10)*time.Second)
 
-		err = s.processWorkerRequest(mc)
+		// TODO: have to set this IP address carefully
+		var req WorkerRequest
+		err = s.processWorkerRequest(mc, req)
 
 		if err != nil {
 			t.Error("Process Error: ", err)
@@ -160,8 +171,8 @@ func TestServerWorkerTracking(t *testing.T) {
 			return
 		}
 
-		if host != r.Worker {
-			t.Errorf("Got host: \"%s\" wanted: %s", r.Worker, host)
+		if host != r.Host {
+			t.Errorf("Got host: \"%s\" wanted: %s", r.Host, host)
 		}
 
 		if port != r.Port {
@@ -182,10 +193,17 @@ func TestWorkerDrop(t *testing.T) {
 
 	// Now lets connect a worker
 	ws := WorkerState{
-		Host:     "smith",
+		Host: "smith",
+		Addrs: []net.IPNet{
+			{net.IPv4(192, 1, 1, 1), net.IPv4Mask(255, 255, 255, 0)},
+		},
 		Port:     56,
 		Capacity: 1,
 		Load:     0,
+	}
+
+	clientAddrs := []net.IPNet{
+		{net.IPv4(192, 1, 1, 2), net.IPv4Mask(255, 255, 255, 0)},
 	}
 
 	mc.Send(ws)
@@ -197,7 +215,7 @@ func TestWorkerDrop(t *testing.T) {
 	for {
 		var err error
 
-		host, _, err = s.findWorker()
+		host, _, _, err = s.findWorker(clientAddrs)
 
 		if err == nil {
 			break
@@ -216,7 +234,7 @@ func TestWorkerDrop(t *testing.T) {
 	for {
 		var err error
 
-		_, _, err = s.findWorker()
+		_, _, _, err = s.findWorker(clientAddrs)
 
 		if err != nil {
 			break

@@ -157,7 +157,7 @@ clean_up
 # local builds can happen
 disp "[Server & worker test]"
 
-export CBD_SERVER="localhost:15800"
+export CBD_SERVER="127.0.0.1:15800"
 export CBD_NO_LOCAL="yes"
 
 cbd -port 15800 -server &

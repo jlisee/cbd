@@ -1,6 +1,7 @@
 package cbd
 
 import (
+	"net"
 	"testing"
 	"time"
 )
@@ -24,7 +25,8 @@ func TestSendWorkerState(t *testing.T) {
 
 	// We set this to false so the background thread only makes one pass
 	w.run = false
-	w.sendWorkerState(mc, "bob")
+	var address []net.IPNet
+	w.sendWorkerState(mc, "bob", address)
 
 	s, err := mc.ReadWorkerState()
 
