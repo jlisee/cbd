@@ -56,6 +56,16 @@ The shell script "test.sh" runs the unit tests as well as some integration
 tests. The standard "go test" will run the unit tests. The "build.sh" program
 will build the software and install the binaries on the GOPATH.
 
+Help full tools to have installed, goimports will automatically fix up imports,
+and can replace the usage of gofmt:
+
+  go get code.google.com/p/go.tools/cmd/goimports
+
+godef will help look up definitions, it integrates with go-mode.el:
+
+  go get code.google.com/p/rog-go/exp/cmd/godef
+
+TODO: maybe gocode as well?
 
 Design
 =======

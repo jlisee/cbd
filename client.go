@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// TODO: this needs some tests
 func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 	address := os.Getenv("CBD_POTENTIAL_HOST")
 	server := os.Getenv("CBD_SERVER")
@@ -66,12 +67,12 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 
 		errj := reportCompletion(server, worker, job, cresults, duration)
 
-		if err != nil {
+		if errj != nil {
 			log.Print("Report job error: ", errj)
 		}
 	}
 
-	return cresults, err
+	return
 }
 
 // findWorker uses a central server to find the desired worker
