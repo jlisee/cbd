@@ -14,8 +14,13 @@ function clean_up() {
     rm -f test-main main.o cbd cbd.test
     JOBS=$(jobs -p)
     if [ "$JOBS" != "" ]; then
-        kill -9 $(jobs -p)
+        kill -9 $(jobs -p) &> /dev/null
     fi
+
+    # Clear all environment variables
+    unset CBD_LOGFILE
+    unset CBD_POTENTIAL_HOST
+    unset CBD_SERVER
 }
 
 function checkout() {
@@ -96,14 +101,12 @@ fi
 # Clean up
 clean_up
 
-
 # ----------------------------------------------------------------------------
 # Server with no server
 # ----------------------------------------------------------------------------
 
 disp "[Dead server]"
 
-unset CBD_POTENTIAL_HOST
 export CBD_SERVER=":15800"
 
 cbdcc gcc -c data/main.c -o main.o
@@ -120,7 +123,6 @@ clean_up
 disp "[Direct dead worker test]"
 
 export CBD_POTENTIAL_HOST="localhost"
-unset CBD_SERVER
 
 cbdcc gcc -c data/main.c -o main.o
 cbdcc gcc main.o -o test-main
@@ -139,7 +141,6 @@ disp "[Direct worker test]"
 cbd &
 
 export CBD_POTENTIAL_HOST="localhost"
-unset CBD_SERVER
 
 cbdcc gcc -c data/main.c -o main.o
 cbdcc gcc main.o -o test-main
@@ -155,7 +156,6 @@ clean_up
 # Now lets do again over with a server and a worker
 disp "[Server & worker test]"
 
-unset CBD_POTENTIAL_HOST
 export CBD_SERVER="localhost:15800"
 
 cbd -address $CBD_SERVER -server &
