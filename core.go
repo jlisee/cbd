@@ -8,7 +8,7 @@ import (
 
 var (
 	// Port used for network communications
-	DefaultPort = 15796
+	DefaultPort = uint(15796)
 	// Whether or not we have debug logging on
 	DebugLogging = false
 )

@@ -7,7 +7,7 @@ import (
 
 func TestSendWorkerState(t *testing.T) {
 	// Create and check our worker
-	w, err := NewWorker("bob:57", "server:89")
+	w, err := NewWorker(57, "server:89")
 
 	if err != nil {
 		t.Error("Making worker:", err)

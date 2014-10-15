@@ -5,15 +5,11 @@
 package cbd
 
 import (
-	"errors"
-	"fmt"
 	"log"
 	"math"
 	"net"
 	"os"
 	"runtime"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -26,25 +22,10 @@ type Worker struct {
 // NewWorker initializes a Worker struct based on the given server and
 // local address.  The local address will be parsed to determine our
 // local port for receiving connections.
-func NewWorker(laddr string, saddr string) (w *Worker, err error) {
+func NewWorker(port int, saddr string) (w *Worker, err error) {
 	w = new(Worker)
 	w.saddr = saddr
 	w.run = true
-
-	// Parse out our port
-	parts := strings.Split(laddr, ":")
-
-	port := DefaultPort
-
-	if len(parts) > 1 {
-		port, err = strconv.Atoi(parts[len(parts)-1])
-
-		if err != nil {
-			msg := fmt.Sprintf("Error parsing port out of \"%s\": %s", laddr, err)
-			return nil, errors.New(msg)
-		}
-	}
-
 	w.port = port
 
 	return w, nil

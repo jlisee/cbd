@@ -160,9 +160,9 @@ disp "[Server & worker test]"
 export CBD_SERVER="localhost:15800"
 export CBD_NO_LOCAL="yes"
 
-cbd -address $CBD_SERVER -server &
+cbd -port 15800 -server &
 
-cbd -address ":15786" &
+cbd -port 15786 &
 
 sleep 1 # Needed hack
 

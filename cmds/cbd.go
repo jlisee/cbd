@@ -2,38 +2,40 @@ package main
 
 import (
 	"flag"
-	"github.com/jlisee/cbd"
 	"log"
 	"net"
 	"os"
 	"strconv"
+
+	"github.com/jlisee/cbd"
 )
 
 func main() {
 
 	// Input flag parsing
-	var address string
-	daddress := "localhost:" + strconv.Itoa(cbd.DefaultPort)
-
+	var port uint
 	var server bool
 
-	flag.StringVar(&address, "address", daddress, "Address to listen on")
+	flag.UintVar(&port, "port", cbd.DefaultPort, "Port to listen on")
 	flag.BoolVar(&server, "server", false, "Run as a server instead of worker")
 
 	flag.Parse()
 
 	// Do work
-	log.Print("Listening on: ", address, " server?: ", server)
+	log.Print("Listening on: ", port, " server?: ", server)
 
 	if server {
-		runServer(address)
+		runServer(int(port))
 	} else {
-		runWorker(address)
+		runWorker(int(port))
 	}
 }
 
-func runWorker(address string) {
+func runWorker(port int) {
 	log.Print("Worker starting")
+
+	// Listen on any address
+	address := "0.0.0.0:" + strconv.FormatUint(uint64(port), 10)
 
 	ln, err := net.Listen("tcp", address)
 	if err != nil {
@@ -42,7 +44,7 @@ func runWorker(address string) {
 
 	saddr := os.Getenv("CBD_SERVER")
 
-	w, err := cbd.NewWorker(address, saddr)
+	w, err := cbd.NewWorker(port, saddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -50,9 +52,11 @@ func runWorker(address string) {
 	w.Serve(ln)
 }
 
-func runServer(address string) {
+func runServer(port int) {
 	log.Print("Server starting")
 
+	// Listen on any address
+	address := ":" + strconv.FormatUint(uint64(port), 10)
 	ln, err := net.Listen("tcp", address)
 	if err != nil {
 		log.Fatal(err)
