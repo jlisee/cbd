@@ -69,8 +69,8 @@ disp "[Local only test]"
 
 export CBD_POTENTIAL_HOST=''
 
-cbdcc gcc -c data/main.c -o main.o
-cbdcc gcc main.o -o test-main
+cbd gcc -c data/main.c -o main.o
+cbd gcc main.o -o test-main
 checkout # Test the output
 
 # Clean up
@@ -86,8 +86,8 @@ trap "rm -rf $TMPLOGDIR" EXIT
 
 export CBD_LOGFILE=$TMPLOGDIR/cbd.log
 
-cbdcc gcc -c data/main.c -o main.o
-cbdcc gcc main.o -o test-main
+cbd gcc -c data/main.c -o main.o
+cbd gcc main.o -o test-main
 checkout # Test the output
 
 LOG_LENGTH=$(wc -l $TMPLOGDIR/cbd.log | cut -d " " -f1)
@@ -109,8 +109,8 @@ disp "[Dead server]"
 
 export CBD_SERVER=":15800"
 
-cbdcc gcc -c data/main.c -o main.o
-cbdcc gcc main.o -o test-main
+cbd gcc -c data/main.c -o main.o
+cbd gcc main.o -o test-main
 checkout # Test the output
 
 clean_up
@@ -124,8 +124,8 @@ disp "[Direct dead worker test]"
 
 export CBD_POTENTIAL_HOST="localhost"
 
-cbdcc gcc -c data/main.c -o main.o
-cbdcc gcc main.o -o test-main
+cbd gcc -c data/main.c -o main.o
+cbd gcc main.o -o test-main
 checkout # Test the output
 
 clean_up
@@ -138,12 +138,12 @@ clean_up
 # Now lets do it again over the network
 disp "[Direct worker test]"
 
-cbd &
+cbd worker &
 
 export CBD_POTENTIAL_HOST="localhost"
 
-cbdcc gcc -c data/main.c -o main.o
-cbdcc gcc main.o -o test-main
+cbd gcc -c data/main.c -o main.o
+cbd gcc main.o -o test-main
 checkout # Test the output
 
 clean_up
@@ -160,14 +160,14 @@ disp "[Server & worker test]"
 export CBD_SERVER="127.0.0.1:15800"
 export CBD_NO_LOCAL="yes"
 
-cbd -port 15800 -server &
+cbd server -port 15800 &
 
-cbd -port 15786 &
+cbd worker -port 15786 &
 
 sleep 1 # Needed hack
 
-cbdcc gcc -c data/main.c -o main.o
-cbdcc gcc main.o -o test-main
+cbd gcc -c data/main.c -o main.o
+cbd gcc main.o -o test-main
 checkout # Test the output
 
 clean_up

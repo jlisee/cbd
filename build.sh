@@ -29,12 +29,10 @@ function build() {
     local start=$(date +%s.%N)
 
     go install
-    go build $EXTRA_FLAGS cmds/cbdcc.go
-    go build $EXTRA_FLAGS cmds/cbdmon.go
     go build $EXTRA_FLAGS cmds/cbd.go
 
     mkdir -p $DESTDIR
-    mv cbdcc cbdmon cbd $DESTDIR
+    mv cbd $DESTDIR
 
     local end=$(date +%s.%N)
 

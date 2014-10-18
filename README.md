@@ -9,19 +9,19 @@ Usage
 
 On your "build-server" host start the server listening on port 18000:
 
-    cbd -address :18000 -server
+    cbd server -port 18000
 
 Start up workers on your various hosts and point them toward the
 server (they will be listening on port 17000):
 
     export CBD_SERVER=build-server:18000
-    cbd -address :17000
+    cbd worker -port 17000
 
 Use the client program in place of gcc and g++:
 
     export CBD_SERVER=build-server:18000
-    export CC='cbdcc gcc'
-    export CXX='cbdcc g++'
+    export CC='cbd gcc'
+    export CXX='cbd  g++'
 
 Now run your build tool as normal.  If you set CBD_LOGFILE to point to a
 file, cbdcc will write verbose debug logging statements their.
