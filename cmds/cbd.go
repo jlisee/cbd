@@ -12,47 +12,149 @@ import (
 	"github.com/jlisee/cbd"
 )
 
-func main() {
-	// Pull of the first argument and either use it as a command, or the
-	// compiler otherwise (later make this a just a configuration setting)
-	command := os.Args[1]
+// Hold information about each command
+type Command struct {
+	fn    func()   // Function to execute
+	help  string   // Help text to display to the user
+	flags []string // The list of flags this command takes
+	alias bool     // When true it's an alias for another
+}
 
-	// Input flag parsing
+// Return true if the command uses this flag
+func (c Command) hasFlag(flag string) bool {
+	for _, v := range c.flags {
+		if v == flag {
+			return true
+		}
+	}
+	return false
+}
+
+// Print the program usage header
+func printUsage() {
+	fmt.Printf(`cbd is a distributed C/C++ build tool.
+
+Usage:
+	cbd command [arguments]
+`)
+}
+
+// Print the help information for each command
+func printCommandHelp(cmds map[string]Command) {
+	// Basic usage
+	printUsage()
+
+	// Find the longest command for formatting purposes
+	l := 0
+
+	for name, cmd := range cmds {
+		if !cmd.alias {
+			nl := len(name)
+			if nl > l {
+				l = nl
+			}
+		}
+	}
+
+	// Form our format string
+	f := "  %" + strconv.Itoa(l) + "s - %s\n"
+
+	// Print our commands
+	fmt.Printf("\nThe commands are:\n\n")
+	for name, cmd := range cmds {
+		if !cmd.alias {
+			fmt.Printf(f, name, cmd.help)
+		}
+	}
+}
+
+func main() {
+	// Input arguments
 	port := new(uint)
 
-	flag.UintVar(port, "port", cbd.DefaultPort, "Port to listen on")
-	//flag.BoolVar(&server, "server", false, "Run as a server instead of worker")
-
 	// Command map
-	commands := map[string]func(){
-		"server": func() {
-			runServer(int(*port))
+	commands := make(map[string]Command)
+	cmdsPointer := &commands
+
+	cmdUpdate := map[string]Command{
+		"server": {
+			fn: func() {
+				runServer(int(*port))
+			},
+			help:  "Run central scheduler",
+			flags: []string{"port"},
 		},
-		"worker": func() {
-			runWorker(int(*port))
+		"worker": {
+			fn: func() {
+				runWorker(int(*port))
+			},
+			help:  "Run build slave",
+			flags: []string{"port"},
 		},
-		"monitor": func() {
-			runMonitor()
+		"monitor": {
+			fn: func() {
+				runMonitor()
+			},
+			help: "Run monitoring CLI",
 		},
+		"help": {
+			fn: func() {
+				printCommandHelp(*cmdsPointer)
+			},
+			help: "Display help information",
+		},
+	}
+
+	// Add in our helpful command aliases
+	helpAliases := []string{"-help", "-h", "--help"}
+
+	aliasCmd := cmdUpdate["help"]
+	aliasCmd.alias = true
+
+	for _, name := range helpAliases {
+		cmdUpdate[name] = aliasCmd
+	}
+
+	// Update our main command list
+	for name, cmd := range cmdUpdate {
+		commands[name] = cmd
+	}
+
+	// Pull of the first argument as our command.  Fall back on help if needed,
+	// otherwise this is the compiler the user wants to run.  (later make this
+	// a just a configuration setting)
+	command := "help"
+
+	// Grab our command then Shift the args down one, to ignore the first
+	// command, if we don't do this the flag package basically ignores all
+	// arguments
+	if len(os.Args) > 1 {
+		command = os.Args[1]
+
+		if len(os.Args) > 1 {
+			os.Args = os.Args[1:]
+		}
 	}
 
 	// Attempt to lookup the command, if it's not in the map, we treat it as the
 	// compiler
-	fn, ok := commands[command]
+	cmd, ok := commands[command]
 
 	if ok {
-		// Shift the args down one, to ignore the first command, if we don't
-		// do this the flag package basically ignores all arguments
-		os.Args = os.Args[1:]
+		if cmd.hasFlag("port") {
+			flag.UintVar(port, "port", cbd.DefaultPort, "Port to listen on")
+		}
+		//flag.BoolVar(&server, "server", false, "Run as a server instead of worker")
+
 		flag.Parse()
 
 		// Now run our command
-		fn()
+		cmd.fn()
 	} else {
 		// We have to parse the arguments manually because the default flag
 		// package stops parsing after positional args, and
 		// github.com/ogier/pflag errors out on unknown arguments.
-		runCompiler(command, os.Args[2:])
+		runCompiler(command, os.Args[1:])
 	}
 }
 
@@ -137,14 +239,15 @@ func runCompiler(compiler string, args []string) {
 		defer f.Close()
 
 		log.SetOutput(f)
-		log.Print("ARGS: ", os.Args[2:])
-		log.Printf("  Distribute?: %t", b.Distributable)
-		log.Printf("  Output path:  %s[%d]\n", b.Output(), b.Oindex)
-		log.Printf("  Input path:   %s[%d]\n", b.Input(), b.Iindex)
 
 		cbd.DebugLogging = true
 	}
+
 	// Dump arguments
+	cbd.DebugPrint("ARGS: ", args)
+	cbd.DebugPrintf("  Distribute?: %t", b.Distributable)
+	cbd.DebugPrintf("  Output path:  %s[%d]\n", b.Output(), b.Oindex)
+	cbd.DebugPrintf("  Input path:   %s[%d]\n", b.Input(), b.Iindex)
 
 	// TODO: Add in a local compile fast past
 	if b.Distributable {
@@ -184,7 +287,7 @@ func runCompiler(compiler string, args []string) {
 		cbd.DebugPrint("Remote Success")
 
 	} else {
-		results, err := cbd.RunCmd(compiler, os.Args[2:])
+		results, err := cbd.RunCmd(compiler, args)
 
 		if err != nil {
 			fmt.Print(string(results.Output))
