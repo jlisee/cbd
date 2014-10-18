@@ -71,6 +71,7 @@ func printCommandHelp(cmds map[string]Command) {
 func main() {
 	// Input arguments
 	port := new(uint)
+	server := new(string)
 
 	// Command map
 	commands := make(map[string]Command)
@@ -86,16 +87,17 @@ func main() {
 		},
 		"worker": {
 			fn: func() {
-				runWorker(int(*port))
+				runWorker(int(*port), *server)
 			},
 			help:  "Run build slave",
-			flags: []string{"port"},
+			flags: []string{"port", "server"},
 		},
 		"monitor": {
 			fn: func() {
-				runMonitor()
+				runMonitor(*server)
 			},
-			help: "Run monitoring CLI",
+			help:  "Run monitoring CLI",
+			flags: []string{"server"},
 		},
 		"help": {
 			fn: func() {
@@ -144,7 +146,10 @@ func main() {
 		if cmd.hasFlag("port") {
 			flag.UintVar(port, "port", cbd.DefaultPort, "Port to listen on")
 		}
-		//flag.BoolVar(&server, "server", false, "Run as a server instead of worker")
+		if cmd.hasFlag("server") {
+			defS := os.Getenv("CBD_SERVER")
+			flag.StringVar(server, "server", defS, "Address of the server")
+		}
 
 		flag.Parse()
 
@@ -158,7 +163,7 @@ func main() {
 	}
 }
 
-func runWorker(port int) {
+func runWorker(port int, saddr string) {
 	log.Print("Worker starting, port: ", port)
 
 	// Listen on any address
@@ -168,8 +173,6 @@ func runWorker(port int) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	saddr := os.Getenv("CBD_SERVER")
 
 	w, err := cbd.NewWorker(port, saddr)
 	if err != nil {
@@ -194,12 +197,10 @@ func runServer(port int) {
 	s.Serve(ln)
 }
 
-func runMonitor() {
+func runMonitor(server string) {
 	log.Print("Monitor starting")
 
 	// Make connection to server
-	server := os.Getenv("CBD_SERVER")
-
 	m := cbd.NewMonitor(server)
 	for {
 		err := m.Connect()
