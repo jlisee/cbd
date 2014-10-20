@@ -87,10 +87,10 @@ func main() {
 		},
 		"worker": {
 			fn: func() {
-				runWorker(int(*port), *server)
+				runWorker(*server)
 			},
 			help:  "Run build slave",
-			flags: []string{"port", "server"},
+			flags: []string{"server"},
 		},
 		"monitor": {
 			fn: func() {
@@ -163,16 +163,17 @@ func main() {
 	}
 }
 
-func runWorker(port int, saddr string) {
-	log.Print("Worker starting, port: ", port)
+func runWorker(saddr string) {
+	log.Print("Worker starting...")
 
 	// Listen on any address
-	address := "0.0.0.0:" + strconv.FormatUint(uint64(port), 10)
+	ln, port, err := cbd.NetListen(0)
 
-	ln, err := net.Listen("tcp", address)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Print("  Listening on port: ", port)
 
 	w, err := cbd.NewWorker(port, saddr)
 	if err != nil {

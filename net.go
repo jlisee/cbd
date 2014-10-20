@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"net"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -165,4 +166,44 @@ func getMatchingIP(as []net.IPNet, bs []net.IPNet) (net.IPNet, error) {
 
 	var ret net.IPNet
 	return ret, fmt.Errorf("Count not find matching IP")
+}
+
+// Listen on the given port, if zero an open port is found
+func NetListen(iport int) (ln net.Listener, port int, err error) {
+	// Search for a port if given zero
+	search := iport == 0
+	port = iport
+
+	if search {
+		port = int(StartPort)
+	}
+
+	// Keep going until we find a port
+	for {
+		address := "0.0.0.0:" + strconv.FormatUint(uint64(port), 10)
+
+		ln, err = net.Listen("tcp", address)
+
+		if err == nil {
+			// Success return!
+			return
+		} else {
+			if search {
+				// In search mode, increment the port and try again
+				port += 1
+
+				// Stop the search when the port number gets too high
+				if port > EndPort {
+					err = fmt.Errorf("Could not find free port between %d - %d",
+						StartPort, EndPort)
+					return
+				}
+
+			} else {
+				return
+			}
+		}
+	}
+
+	return
 }

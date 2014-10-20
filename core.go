@@ -9,6 +9,10 @@ import (
 var (
 	// Port used for network communications
 	DefaultPort = uint(15796)
+	// Beginning of our listen port range
+	StartPort = DefaultPort
+	// End of our listen port range
+	EndPort = 15900
 	// Whether or not we have debug logging on
 	DebugLogging = false
 )
@@ -54,6 +58,8 @@ func (b Build) Input() string {
 	return b.Args[b.Iindex]
 }
 
+// Takes in all the compiler arguments, without the actual compiler command,
+// so "gcc -c data/main.c -o main.o" -> {'-c', 'data/main.c', '-o', 'main.o'}
 func ParseArgs(args []string) Build {
 	distributable := false
 
