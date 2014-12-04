@@ -11,10 +11,22 @@ set -e
 
 # Clean up initial files, and kill all background jobs
 function clean_up() {
+    # Remove binaries
     rm -f test-main main.o cbd cbd.test
+
+    # Stop all running processes
     JOBS=$(jobs -p)
     if [ "$JOBS" != "" ]; then
-        kill -9 $(jobs -p) &> /dev/null
+        for jp in $(jobs -p); do
+            disown $jp
+            kill -9 $jp &> /dev/null
+        done
+    fi
+
+    # Clean log dir
+    if [ -n "$TMPLOGDIR" ]; then
+        rm -rf $TMPLOGDIR
+        unset TMPLOGDIR
     fi
 
     # Clear all environment variables
@@ -28,7 +40,8 @@ function checkout() {
     testout=$(./test-main)
 
     if [ "$testout" != "Hello, world!" ]; then
-        echo "Output Invalid got value '$testout'"
+        echo "ERROR: Output Invalid got value '$testout'"
+        clean_up
         exit 1
     else
         echo "  GOOD"
@@ -41,6 +54,9 @@ function disp() {
 }
 
 clean_up
+
+# Make sure to cleanup on exit
+trap clean_up EXIT
 
 # Run tests
 disp "[Running tests]"
@@ -82,8 +98,6 @@ clean_up
 # ----------------------------------------------------------------------------
 
 TMPLOGDIR=`mktemp -d`
-trap "rm -rf $TMPLOGDIR" EXIT
-
 export CBD_LOGFILE=$TMPLOGDIR/cbd.log
 
 cbd gcc -c data/main.c -o main.o
@@ -171,3 +185,10 @@ cbd gcc main.o -o test-main
 checkout # Test the output
 
 clean_up
+
+
+# ----------------------------------------------------------------------------
+# End of tests
+# ----------------------------------------------------------------------------
+
+disp "[Tests Complete]"
