@@ -6,6 +6,7 @@ package cbd
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"reflect"
@@ -34,6 +35,8 @@ type WorkerResponse struct {
 }
 
 // WorkState represents the load and capacity of a worker
+// TODO: replace "Host" with a worker ID struct which contains the host as
+// well as the hash of the workers MAC addresses
 type WorkerState struct {
 	Host     string      // Host the worker resides one
 	Addrs    []net.IPNet // IP addresses of the worker
@@ -41,6 +44,7 @@ type WorkerState struct {
 	Capacity int         // Number of available cores for building
 	Load     int         // How many cores are current in use
 	Updated  time.Time   // When the state was last updated
+	Speed    float64     // The speed of the worker, computed on the server
 }
 
 // List of all currently active works
@@ -101,8 +105,15 @@ func (s *ServerState) updateWorker(u WorkerState) {
 
 	// Update the shared state
 	s.wmutex.Lock()
+	defer s.wmutex.Unlock()
+
+	// Keep the current speed if we already have an entry for this host
+	if val, ok := s.workers[u.Host]; ok {
+		speed := val.Speed
+		u.Speed = speed
+	}
+
 	s.workers[u.Host] = u
-	s.wmutex.Unlock()
 }
 
 // Remove the worker from the current set of workers
@@ -118,28 +129,48 @@ func (s *ServerState) removeWorker(h string) {
 // findWorker finds a free worker which can connect to any of the given
 // addresses and return the corresponding address and port
 func (s *ServerState) findWorker(addrs []net.IPNet) (string, net.IPNet, int, error) {
+	// Error out if we aren't given any addresses to match against
+	var empty net.IPNet
+	if len(addrs) == 0 {
+		return "", empty, 0, errors.New("No source addresses given")
+	}
+
+	// Make sure we keep the worker state locked
 	s.wmutex.Lock()
 	defer s.wmutex.Unlock()
 
 	// Sort the worker IPs so will match local networks before global
 	sort.Sort(ByPrivateIPAddr(addrs))
 
+	// Found workers
+	var worker WorkerState
+	var addr net.IPNet
+
+	worker.Speed = -1
+	found := false
+
 	// For now just a simple linear search returning the first free
-	for _, state := range s.workers {
-		space := state.Capacity - state.Load
+	for _, wstate := range s.workers {
+		space := wstate.Capacity - wstate.Load
 
 		if space > 0 {
 			// Get a worker IP address that can connect to the client
-			addr, err := getMatchingIP(addrs, state.Addrs)
+			maddr, err := getMatchingIP(addrs, wstate.Addrs)
 
-			if err == nil {
-				DebugPrint("Returned worker: ", state.Host, addr)
-				return state.Host, addr, state.Port, nil
+			// Use this worker if it's faster than the last
+			if err == nil && worker.Speed < wstate.Speed {
+				worker = wstate
+				addr = maddr
+				found = true
 			}
 		}
 	}
 
-	var empty net.IPNet
+	// Return the fastest found worker
+	if found {
+		return worker.Host, addr, worker.Port, nil
+	}
+
 	return "", empty, 0, errors.New("No available & reachable host")
 }
 
@@ -174,6 +205,7 @@ func (s *ServerState) handleConnection(conn *MessageConn) {
 		// TODO: a better identifier for this
 		s.handleMonitorConnection(conn, m.Host, u)
 	case CompletedJob:
+		s.updateStats(m)
 		s.monitorUpdates.updates <- m
 	default:
 		log.Print("Un-handled message type: ", reflect.TypeOf(msg).Name())
@@ -258,4 +290,29 @@ func (s *ServerState) sendWorkState(rate float64) error {
 		s.monitorUpdates.updates <- l
 
 	}
+}
+
+// Updates the workers current speed estimate based on the job results, this
+// uses New = Old * 0.9 + Update * 0.1 to try and smooth out spikes caused by
+// variability.
+func (s *ServerState) updateStats(cj CompletedJob) error {
+	s.wmutex.Lock()
+	defer s.wmutex.Unlock()
+
+	// Blend in the speed slowly if we already have a speed
+	state, ok := s.workers[cj.Worker]
+
+	if !ok {
+		return fmt.Errorf("Could not find worker: ", cj.Worker)
+	}
+
+	if state.Speed == 0 {
+		state.Speed = cj.CompileSpeed
+	} else {
+		state.Speed = state.Speed*0.9 + cj.CompileSpeed*0.1
+	}
+
+	s.workers[cj.Worker] = state
+
+	return nil
 }

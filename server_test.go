@@ -10,12 +10,13 @@ import (
 )
 
 type WorkerTestCase struct {
-	update WorkerState
-	host   string
-	port   int
-	empty  bool
-	error  bool
-	addrs  []net.IPNet
+	update    WorkerState    // Update to apply
+	completed []CompletedJob // Compile jobs (applied after update)
+	host      string
+	port      int
+	empty     bool
+	error     bool        // True if we expect and error
+	addrs     []net.IPNet // Client IPs
 }
 
 // A channel based deadline reader writer
@@ -98,8 +99,10 @@ func TestServerWorkerTracking(t *testing.T) {
 	updates := []WorkerTestCase{
 		// First we make sure that the empty case works
 		WorkerTestCase{
-			empty: true,
-			error: true,
+			empty:     true,
+			error:     true,
+			completed: make([]CompletedJob, 0, 0),
+			addrs:     make([]net.IPNet, 0, 0),
 		},
 		WorkerTestCase{
 			update: WorkerState{
@@ -111,10 +114,31 @@ func TestServerWorkerTracking(t *testing.T) {
 				Capacity: 5,
 				Load:     2,
 			},
-			host:  "smith",
-			port:  56,
-			empty: false,
-			error: false,
+			completed: make([]CompletedJob, 0, 0),
+			host:      "smith",
+			port:      56,
+			empty:     false,
+			error:     false,
+			addrs: []net.IPNet{
+				{net.IPv4(192, 1, 1, 2), net.IPv4Mask(255, 255, 255, 0)},
+			},
+		},
+		WorkerTestCase{
+			update: WorkerState{
+				Host: "speedy",
+				Addrs: []net.IPNet{
+					{net.IPv4(192, 1, 1, 3), net.IPv4Mask(255, 255, 255, 0)},
+				},
+				Port:     56,
+				Capacity: 2,
+				Load:     0,
+			},
+			completed: []CompletedJob{
+				{Worker: "speedy", CompileSpeed: 5},
+				{Worker: "smith", CompileSpeed: 1},
+			},
+			host: "speedy",
+			port: 56,
 			addrs: []net.IPNet{
 				{net.IPv4(192, 1, 1, 2), net.IPv4Mask(255, 255, 255, 0)},
 			},
@@ -126,6 +150,11 @@ func TestServerWorkerTracking(t *testing.T) {
 			s.updateWorker(u.update)
 		}
 
+		// Update stats based on our completed jobs
+		for _, cj := range u.completed {
+			s.updateStats(cj)
+		}
+
 		// TODO: don't ignore address
 		host, _, port, err := s.findWorker(u.addrs)
 
@@ -134,17 +163,16 @@ func TestServerWorkerTracking(t *testing.T) {
 			if err == nil {
 				t.Error("Expected error")
 			}
-			return
+			continue
 		}
 
 		// Continue with normal testing
 		if err != nil {
-			t.Error("Update error: ", err)
-			return
+			t.Error("Find worker error: ", err)
 		}
 
 		if host != u.host {
-			t.Error("Wrong host")
+			t.Error("Wrong host expected:", u.host, "found", host)
 		}
 
 		if port != u.port {
@@ -157,18 +185,19 @@ func TestServerWorkerTracking(t *testing.T) {
 
 		// TODO: have to set this IP address carefully
 		var req WorkerRequest
+		req.Addrs = u.addrs
 		err = s.processWorkerRequest(mc, req)
 
 		if err != nil {
 			t.Error("Process Error: ", err)
-			return
+			continue
 		}
 
 		r, err := mc.ReadWorkerResponse()
 
 		if err != nil {
 			t.Error("Read Error: ", err)
-			return
+			continue
 		}
 
 		if host != r.Host {
@@ -179,6 +208,7 @@ func TestServerWorkerTracking(t *testing.T) {
 			t.Error("Wrong port")
 		}
 	}
+
 }
 
 // Make sure we drop a worker after a connection is severed
@@ -242,6 +272,6 @@ func TestWorkerDrop(t *testing.T) {
 	}
 }
 
-// TODO: we should figure out how to test monitoring here
+// TODO: test the compile speed update here
 
-//func
+// TODO: we should figure out how to test monitoring here

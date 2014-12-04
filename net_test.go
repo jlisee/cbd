@@ -44,7 +44,8 @@ func TestGetLocalIPAddrs(t *testing.T) {
 	}
 
 	if len(addrs) == 0 {
-		t.Error("Could not find any addresses")
+		t.Error("Could not find any addresses (do you have a network " +
+			"connection?)")
 	}
 
 	// Make sure the last part of our address isn't masked

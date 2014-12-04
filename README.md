@@ -32,11 +32,11 @@ Roadmap
 
  - Use worker speed to distribute jobs
  - Auto-discovery of server
- - Combine everything into one exe for easier useage
+ - Centralized object file cache
  - More monitoring
    - Maybe events for start of pre-process
    - Start/Stop of data send
- - Centralized object file cache
+ - Queueing jobs on the server
  - Embedded web browser for monitoring GUI
 
 
