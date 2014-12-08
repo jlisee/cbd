@@ -30,7 +30,6 @@ file, cbdcc will write verbose debug logging statements their.
 Roadmap
 ========
 
- - Use worker speed to distribute jobs
  - Auto-discovery of server
  - Centralized object file cache
  - More monitoring

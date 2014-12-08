@@ -1,7 +1,7 @@
 package cbd
 
 import (
-	//	"bytes"
+	"bytes"
 	"fmt"
 	"net"
 	"runtime"
@@ -21,8 +21,12 @@ type WorkerTestCase struct {
 
 // A channel based deadline reader writer
 type ChannelReadWriter struct {
-	bytes chan byte // Channels bytes come in and out on
-	cl    chan bool // Used to signal the channel closed
+	bytesIn  chan byte // Write writes to this channel
+	bytesOut chan byte // Read read from this channel
+	rCl      chan bool // Used to stop the Read function
+	wCl      chan bool // Used to stop the Write function
+	shCl     chan bool // Used to stop the shuffle goroutine
+	open     bool      // Channel is open
 }
 
 func newChannelReadWriter() *ChannelReadWriter {
@@ -37,10 +41,62 @@ func newChannelReadWriter() *ChannelReadWriter {
 
 	cr := new(ChannelReadWriter)
 
-	cr.bytes = make(chan byte)
-	cr.cl = make(chan bool)
+	cr.bytesIn = make(chan byte)
+	cr.bytesOut = make(chan byte)
+	cr.rCl = make(chan bool, 1)
+	cr.wCl = make(chan bool, 1)
+	cr.shCl = make(chan bool, 1)
+	cr.open = true
+
+	// Moves data between bytesIn and bytesOut
+	go cr.shuffle()
 
 	return cr
+}
+
+// Moves data between are channels
+func (s *ChannelReadWriter) shuffle() {
+	var buf bytes.Buffer
+	d := make([]byte, 1)
+	// Tracks whether we have a byte in our inFlight buffer
+	inFlight := false
+
+	run := true
+
+	for run {
+		// If we have data to send keep sending until we are done
+		for run && (buf.Len() > 0 || inFlight) {
+			// Make sure we have a byte to send
+			if !inFlight {
+				buf.Read(d)
+				inFlight = true
+			}
+
+			// Wait for a chance to send, data to read, or a stop signal
+			select {
+			case s.bytesOut <- d[0]:
+				// data sent
+				inFlight = false
+			case b := <-s.bytesIn:
+				// keep pulling in more data
+				buf.Write([]byte{b})
+			case _ = <-s.shCl:
+				run = false
+			}
+		}
+
+		// No data left to send, block until we get more data or stop signal
+	Loop:
+		for run {
+			select {
+			case b := <-s.bytesIn:
+				buf.Write([]byte{b})
+				break Loop
+			case _ = <-s.shCl:
+				run = false
+			}
+		}
+	}
 }
 
 // Read data until there is nothing in the channel
@@ -48,21 +104,29 @@ func (s *ChannelReadWriter) Read(p []byte) (n int, err error) {
 	n = 0
 	err = nil
 
-	for n = 0; n < len(p); {
-		done := false
+	if s.open {
+		// Timeout if we don't get any data, this is ugly but the higher level
+		// API's don't like this return to spin returning n == 0, err == nil,
+		// while we wait for data to come in
+		timeout := make(chan bool, 1)
+		go func() {
+			time.Sleep(250 * time.Millisecond)
+			timeout <- true
+		}()
 
-		select {
-		case b := <-s.bytes:
-			p[n] = b
-			n++
-		case _ = <-s.cl:
-			err = fmt.Errorf("Channel closed")
-		default:
-			done = true
-		}
-
-		if done {
-			break
+	Loop:
+		for n = 0; n < len(p); {
+			select {
+			case b := <-s.bytesOut:
+				p[n] = b
+				n++
+			case _ = <-s.rCl:
+				err = fmt.Errorf("Channel closed")
+				break Loop
+			case <-timeout:
+				// No data
+				break Loop
+			}
 		}
 	}
 
@@ -71,15 +135,30 @@ func (s *ChannelReadWriter) Read(p []byte) (n int, err error) {
 
 // Write each byte into the channel
 func (s *ChannelReadWriter) Write(p []byte) (n int, err error) {
-	for _, b := range p {
-		s.bytes <- b
+	n = 0
+	err = nil
+
+	if s.open {
+	Loop:
+		for _, b := range p {
+			select {
+			case s.bytesIn <- b:
+				n += 1
+			case _ = <-s.rCl:
+				err = fmt.Errorf("Channel closed")
+				break Loop
+			}
+		}
 	}
 
-	return len(p), nil
+	return n, err
 }
 
 func (s *ChannelReadWriter) Close() {
-	s.cl <- true
+	s.open = false
+	s.rCl <- true
+	s.wCl <- true
+	s.shCl <- true
 }
 
 func (s *ChannelReadWriter) SetReadDeadline(t time.Time) error {
