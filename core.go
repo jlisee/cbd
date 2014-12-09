@@ -6,13 +6,18 @@ import (
 	"path/filepath"
 )
 
-var (
+const (
 	// Port used for network communications
 	DefaultPort = uint(15796)
 	// Beginning of our listen port range
 	StartPort = DefaultPort
 	// End of our listen port range
 	EndPort = 15900
+	// UPD port used for auto discovery
+	DiscoveryPort = 15932
+)
+
+var (
 	// Whether or not we have debug logging on
 	DebugLogging = false
 )
