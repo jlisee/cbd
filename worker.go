@@ -106,6 +106,7 @@ func (w *Worker) updateServer(addrs []net.IPNet) {
 		var saddr string
 
 		if useAuto {
+			DebugPrint("Finding server with autodiscovery")
 			var err error
 			saddr, err = audoDiscoverySearch(time.Duration(1) * time.Second)
 

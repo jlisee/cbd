@@ -214,11 +214,9 @@ type discClient struct {
 	result     chan discResult // Responses from the server sent on this
 }
 
-func newDiscoveryClient(port int) (*discClient, error) {
+func newDiscoveryClient() (*discClient, error) {
 	// Allocate object
 	c := new(discClient)
-
-	c.port = port
 
 	// Create channels
 	c.stopPing = make(chan bool)
@@ -248,13 +246,22 @@ func (c *discClient) start() error {
 		return err
 	}
 
+	// TODO: limit the listening ports to a specific range
 	c.lconn, err = net.ListenUDP("udp4", &net.UDPAddr{
 		IP:   net.IPv4(0, 0, 0, 0),
-		Port: c.port,
+		Port: 0, // Use zero so the OS will automatically assign us a port
 	})
 
 	if err != nil {
 		return err
+	}
+
+	// Figure out what port we are using for receiving UDP packets on
+	addr := c.lconn.LocalAddr()
+	if uaddr, ok := addr.(*net.UDPAddr); ok {
+		c.port = uaddr.Port
+	} else {
+		return fmt.Errorf("Could not get UDPAddr from: ", addr)
 	}
 
 	// Start listening for the packets, and broadcasting responses
@@ -400,7 +407,7 @@ func listenForDiscPacket(c *net.UDPConn, timeout time.Duration) (addr net.UDPAdd
 // Returns the first auto-discovery server
 func audoDiscoverySearch(timeout time.Duration) (string, error) {
 	// Create the client, it starts pinging, and listening immediately
-	c, err := newDiscoveryClient(DiscoveryPort + 1)
+	c, err := newDiscoveryClient()
 	defer c.stop()
 
 	if err != nil {

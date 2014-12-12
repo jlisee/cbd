@@ -64,6 +64,7 @@ func TestDiscoveryStop(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Could not create server", err)
+		return
 	}
 
 	s.stop()
@@ -73,7 +74,7 @@ func TestDiscoveryStop(t *testing.T) {
 func TestDiscoverClientStop(t *testing.T) {
 	discTestSetup()
 
-	c, err := newDiscoveryClient(DiscoveryPort + 1)
+	c, err := newDiscoveryClient()
 
 	if err != nil {
 		t.Errorf("Could not create client", err)
@@ -105,7 +106,7 @@ func TestDiscoverySearch(t *testing.T) {
 	}
 
 	// Make the client
-	c, err := newDiscoveryClient(DiscoveryPort + 1)
+	c, err := newDiscoveryClient()
 
 	if err != nil {
 		t.Error("Could not create client", err)
