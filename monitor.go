@@ -106,7 +106,8 @@ func (m *Monitor) BasicReport() error {
 			fmt.Printf("[")
 			for _, state := range m.Workers {
 				// element is the element from someSlice for where we are
-				fmt.Printf("%s[%d|%d] ", state.Host, state.Load, state.Capacity)
+				fmt.Printf("%s[%d|%d|%.0f] ", state.Host, state.Load,
+					state.Capacity, state.Speed)
 			}
 			fmt.Printf("]\n")
 
