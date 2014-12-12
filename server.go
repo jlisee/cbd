@@ -76,6 +76,21 @@ func (s *ServerState) Serve(ln net.Listener) {
 	// Start sending worker updates at 1Hz
 	go s.sendWorkState(1)
 
+	// Start up our auto discover server
+	var a *discoveryServer
+	addr := ln.Addr()
+	if taddr, ok := addr.(*net.TCPAddr); ok {
+		var err error
+
+		a, err = newDiscoveryServer(taddr.Port)
+
+		if err != nil {
+			log.Print("Error starting auto-discovery", err)
+			return
+		}
+		defer a.stop()
+	}
+
 	// Incoming connections
 	for {
 		DebugPrint("Server accepting...")
@@ -268,6 +283,7 @@ func (s *ServerState) processWorkerRequest(conn *MessageConn, req WorkerRequest)
 	return conn.Send(r)
 }
 
+// Sends worker state to all monitoring programs
 func (s *ServerState) sendWorkState(rate float64) error {
 	// Define sleep based our rate
 	msSleep := 1 / rate * 1000

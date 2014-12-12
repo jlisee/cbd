@@ -43,8 +43,22 @@ func NewMonitor(saddr string) *Monitor {
 
 // Connect to the server and sends monitoring request
 func (m *Monitor) Connect() error {
+	// If we have no set address, use auto-discovery to find the server
+	saddr := m.saddr
+
+	if len(saddr) == 0 {
+		DebugPrint("Finding server with autodiscovery")
+		var err error
+		saddr, err = audoDiscoverySearch(time.Duration(5) * time.Second)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	// Connect
 	var err error
-	m.mc, err = NewTCPMessageConn(m.saddr, time.Duration(10)*time.Second)
+	m.mc, err = NewTCPMessageConn(saddr, time.Duration(10)*time.Second)
 
 	if err != nil {
 		m.mc = nil
