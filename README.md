@@ -30,7 +30,7 @@ file, cbdcc will write verbose debug logging statements their.
 Roadmap
 ========
 
- - Auto-discovery of server
+ - Introduce some kind of queuing behavior to handle a loaded cluster
  - Centralized object file cache
  - More monitoring
    - Maybe events for start of pre-process

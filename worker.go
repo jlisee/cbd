@@ -43,9 +43,7 @@ func (w *Worker) Serve(ln net.Listener) error {
 	}
 
 	// Start update goroutine if present
-	if len(w.saddr) > 0 {
-		go w.updateServer(addrs)
-	}
+	go w.updateServer(addrs)
 
 	for {
 		conn, err := ln.Accept()
@@ -101,11 +99,27 @@ func (w *Worker) updateServer(addrs []net.IPNet) {
 		log.Fatal("Could not find hostname: ", err)
 	}
 
-	for {
-		// Open up
-		DebugPrint("  Connecting to ", w.saddr)
+	useAuto := len(w.saddr) == 0
 
-		saddr := addPortIfNeeded(w.saddr, DefaultServerPort)
+	for {
+		// Use auto-discovery to find the server
+		var saddr string
+
+		if useAuto {
+			var err error
+			saddr, err = audoDiscoverySearch(time.Duration(1) * time.Second)
+
+			if err != nil {
+				log.Print("Error using auto-discovery to find server: ", err)
+				continue
+			}
+		} else {
+			saddr = addPortIfNeeded(w.saddr, DefaultServerPort)
+		}
+
+		// Open up
+		DebugPrint("  Connecting to ", saddr)
+
 		mc, err := NewTCPMessageConn(saddr, time.Duration(10)*time.Second)
 
 		DebugPrint("  Connected!")
