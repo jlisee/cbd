@@ -66,6 +66,17 @@ godef will help look up definitions, it integrates with go-mode.el:
 
 TODO: maybe gocode as well?
 
+Environment Variables
+======================
+
+ - CBD_SERVER - of the form "1.2.3.4:4000", identifies the server, required for
+   setting up workers (port optional).
+ - CBD_POTENTIAL_HOST - of the form "1.2.3.4:4000", tells the worker to connect
+   directly to that worker, instead of querying the server for a worker.
+ - CBD_LOGFILE - path to the debug log file.  If not present, no log is created.
+ - CBD_NO_LOCAL - client error out if it can't build on a remote host, mostly
+   used for testing.
+
 Design
 =======
 
