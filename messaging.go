@@ -84,13 +84,17 @@ type MessageConn struct {
 	timeout time.Duration      // nanosecond timeout
 }
 
-// Create a TCP based message conn
-func NewTCPMessageConn(address string, d time.Duration) (*MessageConn, error) {
-	// Add default port if needed
+// Adds the ":1234" port section to an address if there isn't one already
+func addPortIfNeeded(address string, port uint) string {
 	if strings.Index(address, ":") < 0 {
-		address = address + ":" + strconv.FormatUint(uint64(DefaultPort), 10)
+		address = address + ":" + strconv.FormatUint(uint64(port), 10)
 	}
 
+	return address
+}
+
+// Create a TCP based message conn
+func NewTCPMessageConn(address string, d time.Duration) (*MessageConn, error) {
 	// Make our connection
 	DebugPrint("CONN:, trying to connect to ", address)
 	conn, err := net.Dial("tcp", address)

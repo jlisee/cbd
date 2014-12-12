@@ -54,6 +54,8 @@ func (m *Monitor) Connect() error {
 		if err != nil {
 			return err
 		}
+	} else {
+		saddr = addPortIfNeeded(saddr, DefaultServerPort)
 	}
 
 	// Connect

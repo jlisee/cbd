@@ -155,6 +155,7 @@ disp "[Direct worker test]"
 cbd worker &
 
 export CBD_POTENTIAL_HOST="localhost"
+export CBD_NO_LOCAL="yes"
 
 cbd gcc -c data/main.c -o main.o
 cbd gcc main.o -o test-main

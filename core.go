@@ -8,10 +8,12 @@ import (
 )
 
 const (
-	// Port used for network communications
-	DefaultPort = uint(15796)
-	// Beginning of our listen port range
-	StartPort = DefaultPort + 1
+	// Default port used by the server
+	DefaultServerPort = uint(15796)
+	// Default port used by the worker
+	DefaultWorkerPort = uint(15797)
+	// Beginning of our worker listen port range
+	StartPort = DefaultWorkerPort
 	// End of our listen port range
 	EndPort = 15900
 	// UPD port used for auto discovery

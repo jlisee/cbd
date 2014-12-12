@@ -105,7 +105,8 @@ func (w *Worker) updateServer(addrs []net.IPNet) {
 		// Open up
 		DebugPrint("  Connecting to ", w.saddr)
 
-		mc, err := NewTCPMessageConn(w.saddr, time.Duration(10)*time.Second)
+		saddr := addPortIfNeeded(w.saddr, DefaultServerPort)
+		mc, err := NewTCPMessageConn(saddr, time.Duration(10)*time.Second)
 
 		DebugPrint("  Connected!")
 		if err != nil {

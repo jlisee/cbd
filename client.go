@@ -14,11 +14,15 @@ import (
 // TODO: this needs some tests
 func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 	address := os.Getenv("CBD_POTENTIAL_HOST")
+	address = addPortIfNeeded(address, DefaultWorkerPort)
+
 	server := os.Getenv("CBD_SERVER")
 	local := false
 
 	// If we have a server, but no hosts, go with the server
 	if len(address) == 0 && len(server) > 0 {
+		server = addPortIfNeeded(server, DefaultServerPort)
+
 		address, err = findWorker(server)
 
 		if err != nil {

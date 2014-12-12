@@ -18,6 +18,7 @@ type Command struct {
 	help  string   // Help text to display to the user
 	flags []string // The list of flags this command takes
 	alias bool     // When true it's an alias for another
+	port  uint     // Default port for this function (optional)
 }
 
 // Return true if the command uses this flag
@@ -84,6 +85,7 @@ func main() {
 			},
 			help:  "Run central scheduler",
 			flags: []string{"port"},
+			port:  cbd.DefaultServerPort,
 		},
 		"worker": {
 			fn: func() {
@@ -144,7 +146,11 @@ func main() {
 
 	if ok {
 		if cmd.hasFlag("port") {
-			flag.UintVar(port, "port", cbd.DefaultPort, "Port to listen on")
+			if cmd.port == 0 {
+				log.Println("ERROR: Must define a 'port' field for cmd: ", command)
+				return
+			}
+			flag.UintVar(port, "port", cmd.port, "Port to listen on")
 		}
 		if cmd.hasFlag("server") {
 			defS := os.Getenv("CBD_SERVER")
