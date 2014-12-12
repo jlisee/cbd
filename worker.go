@@ -70,6 +70,11 @@ func (w *Worker) handleRequest(conn DeadlineReadWriter) {
 	}
 
 	// Build the code
+	if err = job.Validate(); err != nil {
+		log.Print("Invalid job: ", err)
+		return
+	}
+
 	cresults, _ := job.Compile()
 
 	// Send back the result

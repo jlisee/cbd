@@ -1,6 +1,7 @@
 package cbd
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -10,7 +11,7 @@ const (
 	// Port used for network communications
 	DefaultPort = uint(15796)
 	// Beginning of our listen port range
-	StartPort = DefaultPort
+	StartPort = DefaultPort + 1
 	// End of our listen port range
 	EndPort = 15900
 	// UPD port used for auto discovery
@@ -212,6 +213,36 @@ func MakeCompileJob(compiler string, b Build) (j CompileJob, results ExecResult,
 	}
 
 	return j, results, nil
+}
+
+// Return an error if there is something wrong with the build job
+func (c CompileJob) Validate() (err error) {
+	if len(c.Input) == 0 {
+		return fmt.Errorf("Input is length 0")
+	}
+
+	if len(c.Compiler) == 0 {
+		return fmt.Errorf("No compiler provided")
+	}
+
+	// Now lets do the Build
+	if len(c.Build.Args) == 0 {
+		return fmt.Errorf("Build has no command line arguments")
+	}
+
+	if c.Build.Oindex >= len(c.Build.Args) {
+		return fmt.Errorf("Build Oindex out of range")
+	}
+
+	if c.Build.Iindex >= len(c.Build.Args) {
+		return fmt.Errorf("Build Iindex out of range")
+	}
+
+	if c.Build.Cindex >= len(c.Build.Args) {
+		return fmt.Errorf("Build Cindex out of range")
+	}
+
+	return nil
 }
 
 // Compile a job locally using temporary files and return the result
