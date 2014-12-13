@@ -192,6 +192,31 @@ clean_up
 
 
 # ----------------------------------------------------------------------------
+# Auto-discovery based test
+# ----------------------------------------------------------------------------
+
+# Now lets do again over with a server and a worker, we also make sure no
+# local builds can happen
+disp "[Auto discovery test (worker->server)]"
+
+# Start up with a non default port
+cbd server -port 15823 &
+
+cbd worker -port 15845 &
+
+sleep 1 # Needed hack
+
+# Set variable just for the client
+export CBD_SERVER="127.0.0.1:15823"
+
+cbd gcc -c data/main.c -o main.o
+cbd gcc main.o -o test-main
+checkout # Test the output
+
+clean_up
+
+
+# ----------------------------------------------------------------------------
 # End of tests
 # ----------------------------------------------------------------------------
 
