@@ -177,7 +177,7 @@ export CBD_NO_LOCAL="yes"
 
 cbd server -port 15800 &
 
-cbd worker &
+cbd worker -port 15850 &
 
 sleep 1 # Needed hack
 

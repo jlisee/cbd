@@ -14,16 +14,16 @@ import (
 // TODO: this needs some tests
 func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 	address := os.Getenv("CBD_POTENTIAL_HOST")
-	address = addPortIfNeeded(address, DefaultWorkerPort)
-
 	server := os.Getenv("CBD_SERVER")
 	local := false
+
+	var worker string
 
 	// If we have a server, but no hosts, go with the server
 	if len(address) == 0 && len(server) > 0 {
 		server = addPortIfNeeded(server, DefaultServerPort)
 
-		address, err = findWorker(server)
+		worker, address, err = findWorker(server)
 
 		if err != nil {
 			log.Print("Find worker error: ", err)
@@ -35,6 +35,7 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 
 	// Try to build on the remote host if we have found one
 	if len(address) > 0 {
+		address = addPortIfNeeded(address, DefaultWorkerPort)
 		cresults, err = buildRemote(address, job)
 
 		// If the remote build failed switch to local
@@ -54,8 +55,6 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 	}
 
 	// Build it locally if all else has failed
-	worker := address
-
 	if local {
 		cresults, err = job.Compile()
 
@@ -80,11 +79,11 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 }
 
 // findWorker uses a central server to find the desired worker
-func findWorker(address string) (worker string, err error) {
-	DebugPrint("Finding worker server: ", address)
+func findWorker(server string) (address string, worker string, err error) {
+	DebugPrint("Finding worker server: ", server)
 
 	// Connect to server
-	mc, err := NewTCPMessageConn(address, time.Duration(10)*time.Second)
+	mc, err := NewTCPMessageConn(server, time.Duration(10)*time.Second)
 
 	if err != nil {
 		return
@@ -120,11 +119,12 @@ func findWorker(address string) (worker string, err error) {
 		return
 	}
 
-	worker = r.Address.IP.String() + ":" + strconv.Itoa(r.Port)
+	address = r.Address.IP.String() + ":" + strconv.Itoa(r.Port)
+	worker = r.Host
 
-	DebugPrintf("Using worker: %s (%s)", r.Host, worker)
+	DebugPrintf("Using worker: %s (%s)", r.Host, address)
 
-	return worker, nil
+	return worker, address, nil
 }
 
 // Reports the completion of the given job to the server

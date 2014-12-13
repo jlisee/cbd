@@ -89,10 +89,12 @@ func main() {
 		},
 		"worker": {
 			fn: func() {
-				runWorker(*server)
+				runWorker(*server, int(*port))
 			},
 			help:  "Run build slave",
-			flags: []string{"server"},
+			flags: []string{"server", "port"},
+			// Automatically pick listening port
+			port: 0,
 		},
 		"monitor": {
 			fn: func() {
@@ -146,10 +148,6 @@ func main() {
 
 	if ok {
 		if cmd.hasFlag("port") {
-			if cmd.port == 0 {
-				log.Println("ERROR: Must define a 'port' field for cmd: ", command)
-				return
-			}
 			flag.UintVar(port, "port", cmd.port, "Port to listen on")
 		}
 		if cmd.hasFlag("server") {
@@ -169,11 +167,11 @@ func main() {
 	}
 }
 
-func runWorker(saddr string) {
+func runWorker(saddr string, iport int) {
 	log.Print("Worker starting...")
 
 	// Listen on any address
-	ln, port, err := cbd.NetListen(0)
+	ln, port, err := cbd.NetListen(iport)
 
 	if err != nil {
 		log.Fatal(err)

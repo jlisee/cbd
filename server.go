@@ -220,7 +220,12 @@ func (s *ServerState) handleConnection(conn *MessageConn) {
 		// TODO: a better identifier for this
 		s.handleMonitorConnection(conn, m.Host, u)
 	case CompletedJob:
-		s.updateStats(m)
+		err = s.updateStats(m)
+
+		if err != nil {
+			log.Print("Error updating stats: ", err)
+		}
+
 		s.monitorUpdates.updates <- m
 	default:
 		log.Print("Un-handled message type: ", reflect.TypeOf(msg).Name())
@@ -319,7 +324,7 @@ func (s *ServerState) updateStats(cj CompletedJob) error {
 	state, ok := s.workers[cj.Worker]
 
 	if !ok {
-		return fmt.Errorf("Could not find worker: ", cj.Worker)
+		return fmt.Errorf("Could not find worker: %s", cj.Worker)
 	}
 
 	if state.Speed == 0 {
