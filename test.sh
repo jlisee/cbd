@@ -6,6 +6,9 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Pull in the build and clean functions
 source $DIR/build.sh
 
+# Make sure our working directory is always the script dir
+cd $DIR
+
 # Exit on error
 set -e
 

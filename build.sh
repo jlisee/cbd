@@ -3,6 +3,10 @@
 # Exit on error
 set -e
 
+# Make sure we are working out of the script dir
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd $SCRIPT_DIR
+
 # Clean up initial files
 function build() {
     local EXTRA_FLAGS=""
