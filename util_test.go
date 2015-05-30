@@ -86,3 +86,19 @@ func TestGetLoadAverage(t *testing.T) {
 		t.Error("Load bad: ", load)
 	}
 }
+
+func TestGUID(t *testing.T) {
+	g1 := NewGUID()
+	g2 := NewGUID()
+
+	if g1 == g2 {
+		t.Error("GUIDs match but should be different: ", g1, g2)
+	}
+
+	s1 := g1.String()
+	s2 := g2.String()
+
+	if s1 == s2 {
+		t.Error("GUIDs match but should be different: ", s1, s2)
+	}
+}

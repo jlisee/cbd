@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -158,4 +159,30 @@ func DebugPrintf(format string, v ...interface{}) {
 	if DebugLogging {
 		log.Printf(format, v...)
 	}
+}
+
+// Our UUID v4 globally unique id
+type GUID [16]byte
+
+// Generate a totally random UUID v4
+func NewGUID() GUID {
+	// Get our 16 bytes or random data
+	b := make([]byte, 16)
+	rand.Read(b)
+
+	// Update it to meet the UUID v4 spec
+	b[6] = 0x40 | (0x0F & b[8])
+	b[8] = 0xC0 | (0x3F & b[6])
+
+	// Transform it into an array
+	var g GUID
+	copy(g[:], b)
+
+	return g
+}
+
+// Turn that UUID into a string of the format:
+//  cd67b045-0f86-42b4-c2be-be31003ee83d
+func (g *GUID) String() string {
+	return fmt.Sprintf("%x-%x-%x-%x-%x", g[0:4], g[4:6], g[6:8], g[8:10], g[10:])
 }
