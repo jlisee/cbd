@@ -16,17 +16,18 @@ import (
 
 // The information needed
 type SchedulerRequest struct {
-	// Where the result is sent
-	r chan WorkerResponse
-
-	// Addresses of the client
-	addrs []net.IPNet
+	r      chan WorkerResponse // Where the result is sent
+	addrs  []net.IPNet         // Addresses of the client
+	guid   GUID                // Unique ID for this request, used to cancel
+	active bool                // False when the request has been canceled
 }
 
 func NewSchedulerRequest(addrs []net.IPNet) *SchedulerRequest {
 	req := new(SchedulerRequest)
 	req.r = make(chan WorkerResponse, 1)
 	req.addrs = addrs
+	req.guid = NewGUID()
+	req.active = true
 
 	return req
 }
@@ -35,6 +36,9 @@ func NewSchedulerRequest(addrs []net.IPNet) *SchedulerRequest {
 type Scheduler interface {
 	// Put in a request to schedule a job
 	schedule(r *SchedulerRequest) error
+
+	// Remove the request from our list of requests
+	cancel(g GUID) error
 
 	// Mark job completed
 	completed(cj CompletedJob) error
@@ -55,9 +59,6 @@ type Scheduler interface {
 	findWorker(addrs []net.IPNet) (string, net.IPNet, int, error)
 
 	// TODO: something to dump current queue information
-
-	// TODO: we need to be able to cancel requests, create a simple GUID generator
-	// http://play.golang.org/p/7JJDx4GL77
 }
 
 type FifoScheduler struct {
@@ -113,6 +114,36 @@ func (s *FifoScheduler) schedule(req *SchedulerRequest) error {
 	}
 
 	return nil
+}
+
+func (s *FifoScheduler) cancel(g GUID) error {
+	s.smutex.Lock()
+	defer s.smutex.Unlock()
+
+	// Attempt to find request by ID
+	found := -1
+
+	for idx, req := range s.requests {
+		if g == req.guid {
+			// Found it!
+			found = idx
+			break
+		}
+	}
+
+	// Remove it from our array of requests if it was found
+	var err error
+
+	if found >= 0 {
+		// Mark it inactive then remove it
+		s.requests[found].active = false
+
+		s.requests = append(s.requests[:found], s.requests[found+1:]...)
+	} else {
+		err = fmt.Errorf("Could not find request with id: ", g)
+	}
+
+	return err
 }
 
 func (s *FifoScheduler) completed(cj CompletedJob) error {

@@ -248,11 +248,18 @@ func (s *ServerState) processWorkerRequest(conn *MessageConn, req WorkerRequest)
 				}
 
 			case <-timeout:
-				// the read from ch has timed, tell the user we have a queue result
+				// the read from ch has timed, tell the user we have a queue
+				// result
 				err = conn.Send(WorkerResponse{Type: Queued})
 
-				// we hit an error break out of loop
+				// Cancel the request and leave the loop
 				if err != nil {
+					cerr := s.sch.cancel(sreq.guid)
+
+					if cerr != nil {
+						DebugPrintf("Error canceling request %s: %s", sreq, cerr)
+					}
+
 					break Loop
 				}
 			}

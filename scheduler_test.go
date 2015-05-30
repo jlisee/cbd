@@ -46,8 +46,6 @@ func TestScheduler(t *testing.T) {
 		t.Error("Response should of been no workers, but got:", res.Type)
 	}
 
-	// Ask Try and schedule something when there are no workers at all
-
 	// Setup some busy workers
 	foo := WorkerState{
 		Host: "foo",
@@ -103,5 +101,47 @@ func TestScheduler(t *testing.T) {
 
 	if foo.Host != res.Host {
 		t.Error("Should of gotten foo host but got:", res.Host)
+	}
+
+	// Load down the worker and make sure the next request is queued
+	foo.Load = foo.Capacity
+
+	sch.updateWorker(foo)
+
+	sreq = NewSchedulerRequest(addrs)
+
+	err = sch.schedule(sreq)
+
+	if err != nil {
+		t.Error("Schedule error: ", err)
+	}
+
+	res = <-sreq.r
+
+	if Queued != res.Type {
+		t.Error("Response should of been queued, but got:", res.Type)
+	}
+
+	// Now lets cancel the response
+	if !sreq.active {
+		t.Errorf("Request should be active")
+	}
+
+	sch.cancel(sreq.guid)
+
+	if sreq.active {
+		t.Errorf("Request should be in active")
+	}
+
+	// Check to make sure things are ok
+	foo.Load = 0
+
+	sch.updateWorker(foo)
+
+	select {
+	case res = <-sreq.r:
+		t.Errorf("Got message we should not of: ", res)
+	default:
+		// Valid things are ok
 	}
 }
