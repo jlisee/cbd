@@ -9,6 +9,18 @@ import (
 	"testing"
 )
 
+func TestGetMachineID(t *testing.T) {
+	m, err := GetMachineID()
+
+	if err != nil {
+		t.Errorf("Error getting machine id: ", err)
+	}
+
+	if m == "" {
+		t.Errorf("Machine ID is empty!")
+	}
+}
+
 func TestTempFile(t *testing.T) {
 	f, err := TempFile("", "cbd-test-", ".test")
 

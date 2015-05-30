@@ -15,13 +15,54 @@ import (
 	"io/ioutil"
 	"log"
 	"math/big"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
 )
+
+// String that unique identifies a machine
+type MachineID string
+
+func (m *MachineID) ToString() string {
+	return fmt.Sprintf("MachineID{%s}", string(*m))
+}
+
+// Returns the ID of the current machine
+func GetMachineID() (m MachineID, err error) {
+	// First grab all the interfaces
+	ifaces, err := net.Interfaces()
+
+	if err != nil {
+		return
+	}
+
+	if len(ifaces) == 0 {
+		err = fmt.Errorf("No network interfaces found!")
+		return
+	}
+
+	// Build up list of all mac addresses
+	macs := make([]string, 0, len(ifaces))
+
+	for _, iface := range ifaces {
+		str := iface.HardwareAddr.String()
+		if len(str) > 0 {
+			macs = append(macs, str)
+		}
+	}
+
+	// Sort then and pick the first one
+	sort.Strings(macs)
+
+	m = MachineID(macs[0])
+
+	return
+}
 
 // The result of running a command
 type ExecResult struct {
