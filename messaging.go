@@ -103,7 +103,7 @@ func NewTCPMessageConn(address string, d time.Duration) (*MessageConn, error) {
 		return nil, err
 	}
 
-	return NewMessageConn(conn, time.Duration(10)*time.Second), nil
+	return NewMessageConn(conn, d), nil
 }
 
 // Create a message connection with the given buffer
