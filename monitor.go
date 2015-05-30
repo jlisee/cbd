@@ -12,10 +12,20 @@ import (
 	"time"
 )
 
+// Convenient wrapper for ID & Host
+type MachineName struct {
+	ID   MachineID // The unique ID of the machine
+	Host string    // The host name of the machine
+}
+
+func (mn *MachineName) ToString() string {
+	return fmt.Sprintf("%s[%s]", mn.Host, mn.ID)
+}
+
 // CompletedJob is one updated about a job completed on the cluster
 type CompletedJob struct {
-	Client       string        // Machine that requested the job
-	Worker       string        // Worker that build the job
+	Client       MachineName   // Machine that requested the job
+	Worker       MachineName   // Worker that build the job
 	InputSize    int           // Bytes of source code compiled
 	OutputSize   int           // Bytes of object code produced
 	CompileTime  time.Duration // How long the job took to complete

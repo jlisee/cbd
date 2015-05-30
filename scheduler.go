@@ -50,20 +50,20 @@ type Scheduler interface {
 	updateWorker(state WorkerState) error
 
 	// Remove resource
-	removeWorker(worker string) error
+	removeWorker(id MachineID) error
 
 	// Get current work state
 	getWorkerState() WorkerStateList
 
 	/// TODO: figure out a way to remove me, this is just a test function
-	findWorker(addrs []net.IPNet) (string, net.IPNet, int, error)
+	findWorker(addrs []net.IPNet) (WorkerResponse, error)
 
 	// TODO: something to dump current queue information
 }
 
 type FifoScheduler struct {
-	workers map[string]WorkerState // All the currently active workers
-	smutex  *sync.Mutex            // Protects access to all state
+	workers map[MachineID]WorkerState // All the currently active workers
+	smutex  *sync.Mutex               // Protects access to all state
 
 	// TODO: consider container/list which would have less copying
 	requests []*SchedulerRequest // Waiting requests
@@ -71,7 +71,7 @@ type FifoScheduler struct {
 
 func newFifoScheduler() *FifoScheduler {
 	s := new(FifoScheduler)
-	s.workers = make(map[string]WorkerState)
+	s.workers = make(map[MachineID]WorkerState)
 	s.smutex = new(sync.Mutex)
 	s.requests = make([]*SchedulerRequest, 0, 100)
 
@@ -90,17 +90,9 @@ func (s *FifoScheduler) schedule(req *SchedulerRequest) error {
 	}
 
 	/// TODO: handle no source address check explicitly at this level
-	host, addr, port, err := findFreeWorker(&s.workers, req.addrs)
+	wr, err := findFreeWorker(&s.workers, req.addrs)
 
 	if err == nil {
-		// Build valid response
-		wr := WorkerResponse{
-			Type:    Valid,
-			Host:    host,
-			Address: addr,
-			Port:    port,
-		}
-
 		// Write it to channel
 		req.r <- wr
 
@@ -157,7 +149,7 @@ func (s *FifoScheduler) addWorker(state WorkerState) error {
 	s.smutex.Lock()
 	defer s.smutex.Unlock()
 
-	s.workers[state.Host] = state
+	s.workers[state.ID] = state
 
 	// Try and schedule queued requests
 	s.scheduleRequests()
@@ -177,11 +169,11 @@ func (s *FifoScheduler) updateWorker(update WorkerState) error {
 	return nil
 }
 
-func (s *FifoScheduler) removeWorker(worker string) error {
+func (s *FifoScheduler) removeWorker(id MachineID) error {
 	s.smutex.Lock()
 	defer s.smutex.Unlock()
 
-	delete(s.workers, worker)
+	delete(s.workers, id)
 
 	return nil
 }
@@ -202,7 +194,7 @@ func (s *FifoScheduler) getWorkerState() WorkerStateList {
 }
 
 /// TODO: remove me just an internal test function
-func (s *FifoScheduler) findWorker(addrs []net.IPNet) (string, net.IPNet, int, error) {
+func (s *FifoScheduler) findWorker(addrs []net.IPNet) (WorkerResponse, error) {
 	s.smutex.Lock()
 	defer s.smutex.Unlock()
 
@@ -218,17 +210,9 @@ func (s *FifoScheduler) scheduleRequests() {
 		found := -1
 
 		for idx, req := range s.requests {
-			host, addr, port, err := findFreeWorker(&s.workers, req.addrs)
+			wr, err := findFreeWorker(&s.workers, req.addrs)
 
 			if err == nil {
-				// Build valid response
-				wr := WorkerResponse{
-					Type:    Valid,
-					Host:    host,
-					Address: addr,
-					Port:    port,
-				}
-
 				// Write it to channel
 				req.r <- wr
 
@@ -241,7 +225,7 @@ func (s *FifoScheduler) scheduleRequests() {
 
 		// Handle results
 		if found >= 0 {
-			// We fufilled a request so remove it from our list
+			// We fulfilled a request so remove it from our list
 			s.requests = append(s.requests[:found], s.requests[found+1:]...)
 		} else {
 			// We try all requests but couldn't schedule anyone so
@@ -252,22 +236,22 @@ func (s *FifoScheduler) scheduleRequests() {
 }
 
 // Integrate new worker state into existing state map
-func mergeWorkerState(workers *map[string]WorkerState, update WorkerState) {
+func mergeWorkerState(workers *map[MachineID]WorkerState, update WorkerState) {
 	// Keep the current speed if we already have an entry for this host
-	if val, ok := (*workers)[update.Host]; ok {
+	if val, ok := (*workers)[update.ID]; ok {
 		speed := val.Speed
 		update.Speed = speed
 	}
 
-	(*workers)[update.Host] = update
+	(*workers)[update.ID] = update
 }
 
 // Updates the workers current speed estimate based on the job results, this
 // uses New = Old * 0.9 + Update * 0.1 to try and smooth out spikes caused by
 // variability.
-func updateWorkerStats(workers *map[string]WorkerState, cj CompletedJob) error {
+func updateWorkerStats(workers *map[MachineID]WorkerState, cj CompletedJob) error {
 	// Blend in the speed slowly if we already have a speed
-	state, ok := (*workers)[cj.Worker]
+	state, ok := (*workers)[cj.Worker.ID]
 
 	if !ok {
 		return fmt.Errorf("Could not find worker: %s", cj.Worker)
@@ -279,18 +263,24 @@ func updateWorkerStats(workers *map[string]WorkerState, cj CompletedJob) error {
 		state.Speed = state.Speed*0.9 + cj.CompileSpeed*0.1
 	}
 
-	(*workers)[cj.Worker] = state
+	(*workers)[cj.Worker.ID] = state
 
 	return nil
 }
 
 // findWorker finds a free worker which can connect to any of the given
 // addresses and return the corresponding address and port
-func findFreeWorker(workers *map[string]WorkerState, addrs []net.IPNet) (string, net.IPNet, int, error) {
+func findFreeWorker(workers *map[MachineID]WorkerState, addrs []net.IPNet) (WorkerResponse, error) {
 	// Error out if we aren't given any addresses to match against
-	var empty net.IPNet
+	empty := WorkerResponse{
+		Type: NoWorkers,
+		ID:   MachineID(""),
+		Host: "",
+		Port: 0,
+	}
+
 	if len(addrs) == 0 {
-		return "", empty, 0, errors.New("No source addresses given")
+		return empty, errors.New("No source addresses given")
 	}
 
 	// Sort the worker IPs so will match local networks before global
@@ -322,8 +312,16 @@ func findFreeWorker(workers *map[string]WorkerState, addrs []net.IPNet) (string,
 
 	// Return the fastest found worker
 	if found {
-		return worker.Host, addr, worker.Port, nil
+		res := WorkerResponse{
+			Type:    Valid,
+			ID:      worker.ID,
+			Host:    worker.Host,
+			Address: addr,
+			Port:    worker.Port,
+		}
+
+		return res, nil
 	}
 
-	return "", empty, 0, errors.New("No available & reachable host")
+	return empty, errors.New("No available & reachable host")
 }

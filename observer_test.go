@@ -52,8 +52,24 @@ func TestCompletedJobPublisher(t *testing.T) {
 
 	p.addObs("1", l1.updates)
 
+	// Define names
+	an := MachineName{
+		ID:   MachineID(""),
+		Host: "A",
+	}
+
+	bn := MachineName{
+		ID:   MachineID(""),
+		Host: "B",
+	}
+
+	cn := MachineName{
+		ID:   MachineID(""),
+		Host: "C",
+	}
+
 	// Publish something
-	j := CompletedJob{Client: "A", Worker: "B"}
+	j := CompletedJob{Client: an, Worker: bn}
 	p.publish(j)
 
 	// Make sure we got it
@@ -62,7 +78,7 @@ func TestCompletedJobPublisher(t *testing.T) {
 	if len(l1.res) != 1 {
 		t.Errorf("Error with publish")
 	} else {
-		if l1.res[0].Client != "A" {
+		if l1.res[0].Client != an {
 			t.Errorf("Error with publish")
 		}
 	}
@@ -73,7 +89,7 @@ func TestCompletedJobPublisher(t *testing.T) {
 	p.addObs("2", l2.updates)
 
 	// Publish another job
-	j = CompletedJob{Client: "A", Worker: "C"}
+	j = CompletedJob{Client: an, Worker: cn}
 	p.publish(j)
 
 	_ = <-l1.done
@@ -90,7 +106,7 @@ func TestCompletedJobPublisher(t *testing.T) {
 	// Now remove the main one
 	p.removeObs("1")
 
-	j = CompletedJob{Client: "A", Worker: "C"}
+	j = CompletedJob{Client: an, Worker: cn}
 	p.publish(j)
 
 	_ = <-l2.done

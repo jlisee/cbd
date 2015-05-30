@@ -25,6 +25,7 @@ type WorkerRequest struct {
 	Addrs  []net.IPNet // IP addresses of the client
 }
 
+// Determine what kind of response the server sent
 type ResponseType int
 
 const (
@@ -34,16 +35,16 @@ const (
 )
 
 type WorkerResponse struct {
-	Type    ResponseType // Is
-	Host    string       // Host of the worker
+	Type    ResponseType // Valid or queue
+	ID      MachineID    // Uniquely identifies machine
+	Host    string       // Host of the worker (for debugging purposes)
 	Address net.IPNet    // IP address of the worker
 	Port    int          // Port the workers accepts connections on
 }
 
 // WorkState represents the load and capacity of a worker
-// TODO: replace "Host" with a worker ID struct which contains the host as
-// well as the hash of the workers MAC addresses
 type WorkerState struct {
+	ID       MachineID   // Uniquely id for the worker machine
 	Host     string      // Host the worker resides one
 	Addrs    []net.IPNet // IP addresses of the worker
 	Port     int         // Port the worker accepts jobs on
@@ -127,9 +128,9 @@ func (s *ServerState) updateWorker(u WorkerState) {
 }
 
 // Remove the worker from the current set of workers
-func (s *ServerState) removeWorker(h string) {
+func (s *ServerState) removeWorker(id MachineID) {
 	// Have the scheduler remove the worker
-	s.sch.removeWorker(h)
+	s.sch.removeWorker(id)
 }
 
 // func (s*ServerState) pruneStaleWorkers(h string)
@@ -190,7 +191,7 @@ func (s *ServerState) handleWorkerConnection(conn *MessageConn, is WorkerState) 
 
 		if err != nil {
 			// Drop missing worker
-			s.removeWorker(is.Host)
+			s.removeWorker(is.ID)
 
 			log.Print("Error reading worker state: ", err)
 			break

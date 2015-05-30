@@ -19,13 +19,20 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 	server := os.Getenv("CBD_SERVER")
 	local := false
 
-	var worker string
+	// Grab our ID
+	id, err := GetMachineID()
+
+	if err != nil {
+		log.Print("Failed to get the local machine ID: ", err)
+	}
+
+	var worker MachineName
 
 	// If we have a server, but no hosts, go with the server
 	if len(address) == 0 && len(server) > 0 {
 		server = addPortIfNeeded(server, DefaultServerPort)
 
-		worker, address, err = findWorker(server)
+		address, worker, err = findWorker(server)
 
 		if err != nil {
 			log.Print("Find worker error: ", err)
@@ -56,12 +63,18 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 		return cresults, fmt.Errorf("Can't find worker")
 	}
 
+	// Determine our local id
+	ln := MachineName{
+		ID:   id,
+		Host: job.Host,
+	}
+
 	// Build it locally if all else has failed
 	if local {
 		cresults, err = job.Compile()
 
 		// Local build so we are building things
-		worker = job.Host
+		worker = ln
 	}
 
 	// Report to server if we have a connection
@@ -70,7 +83,7 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 
 		duration := stop.Sub(start)
 
-		errj := reportCompletion(server, worker, job, cresults, duration)
+		errj := reportCompletion(server, ln, worker, job, cresults, duration)
 
 		if errj != nil {
 			log.Print("Report job error: ", errj)
@@ -81,7 +94,7 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 }
 
 // findWorker uses a central server to find the desired worker
-func findWorker(server string) (address string, worker string, err error) {
+func findWorker(server string) (address string, worker MachineName, err error) {
 	DebugPrint("Finding worker server: ", server)
 
 	// Set a timeout for this entire process and just build locally
@@ -154,19 +167,22 @@ Loop:
 	}
 
 	address = r.Address.IP.String() + ":" + strconv.Itoa(r.Port)
-	worker = r.Host
+	worker = MachineName{
+		ID:   r.ID,
+		Host: r.Host,
+	}
 
 	DebugPrintf("Using worker: %s (%s)", r.Host, address)
 
-	return worker, address, nil
+	return address, worker, nil
 }
 
 // Reports the completion of the given job to the server
-func reportCompletion(address string, worker string, j CompileJob, r CompileResult, d time.Duration) error {
+func reportCompletion(address string, c MachineName, w MachineName, j CompileJob, r CompileResult, d time.Duration) error {
 
 	jc := CompletedJob{
-		Client:      j.Host,
-		Worker:      worker,
+		Client:      c,
+		Worker:      w,
 		InputSize:   len(j.Input),
 		OutputSize:  len(r.ObjectCode),
 		CompileTime: d,

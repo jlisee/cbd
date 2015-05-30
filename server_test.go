@@ -23,6 +23,7 @@ type WorkerTestCase struct {
 	error bool // True if we expect and error
 
 	// Successful results
+	id    MachineID
 	host  string
 	port  int
 	addrs []net.IPNet // Client IPs
@@ -184,6 +185,9 @@ func (s *ChannelReadWriter) SetWriteDeadline(t time.Time) error {
 func TestServerWorkerTracking(t *testing.T) {
 	s := NewServerState()
 
+	smith_id := MachineID("11:23:45:67:89:ab")
+	speedy_id := MachineID("01:23:45:67:89:ab")
+
 	updates := []WorkerTestCase{
 		// First we make sure that the empty case works
 		WorkerTestCase{
@@ -192,8 +196,11 @@ func TestServerWorkerTracking(t *testing.T) {
 			completed: make([]CompletedJob, 0, 0),
 			addrs:     make([]net.IPNet, 0, 0),
 		},
+
+		// Then put in a worker with available space and a request for him
 		WorkerTestCase{
 			update: WorkerState{
+				ID:   smith_id,
 				Host: "smith",
 				Addrs: []net.IPNet{
 					{net.IPv4(192, 1, 1, 1), net.IPv4Mask(255, 255, 255, 0)},
@@ -203,6 +210,7 @@ func TestServerWorkerTracking(t *testing.T) {
 				Load:     2,
 			},
 			completed: make([]CompletedJob, 0, 0),
+			id:        smith_id,
 			host:      "smith",
 			port:      56,
 			empty:     false,
@@ -211,8 +219,12 @@ func TestServerWorkerTracking(t *testing.T) {
 				{net.IPv4(192, 1, 1, 2), net.IPv4Mask(255, 255, 255, 0)},
 			},
 		},
+
+		// Then we put in another worker along with an update that marks him speedy
+		// and we make sure he gets the new job
 		WorkerTestCase{
 			update: WorkerState{
+				ID:   speedy_id,
 				Host: "speedy",
 				Addrs: []net.IPNet{
 					{net.IPv4(192, 1, 1, 3), net.IPv4Mask(255, 255, 255, 0)},
@@ -222,9 +234,10 @@ func TestServerWorkerTracking(t *testing.T) {
 				Load:     0,
 			},
 			completed: []CompletedJob{
-				{Worker: "speedy", CompileSpeed: 5},
-				{Worker: "smith", CompileSpeed: 1},
+				{Worker: MachineName{ID: speedy_id, Host: "speedy"}, CompileSpeed: 5},
+				{Worker: MachineName{ID: smith_id, Host: "smith"}, CompileSpeed: 1},
 			},
+			id:   speedy_id,
 			host: "speedy",
 			port: 56,
 			addrs: []net.IPNet{
@@ -240,11 +253,15 @@ func TestServerWorkerTracking(t *testing.T) {
 
 		// Update stats based on our completed jobs
 		for _, cj := range u.completed {
-			s.updateStats(cj)
+			err := s.updateStats(cj)
+
+			if err != nil {
+				t.Error("Failed to update stats: ", err)
+			}
 		}
 
 		// TODO: don't ignore address
-		host, _, port, err := s.sch.findWorker(u.addrs)
+		wr, err := s.sch.findWorker(u.addrs)
 
 		// Test one where expect nothing back
 		if u.error {
@@ -259,11 +276,15 @@ func TestServerWorkerTracking(t *testing.T) {
 			t.Error("Find worker error: ", err)
 		}
 
-		if host != u.host {
-			t.Error("Wrong host expected:", u.host, "found", host)
+		if wr.ID != u.id {
+			t.Error("Wrong ID expected:", wr.ID, "found", u.id)
 		}
 
-		if port != u.port {
+		if wr.Host != u.host {
+			t.Error("Wrong host expected:", u.host, "found", wr.Host)
+		}
+
+		if wr.Port != u.port {
 			t.Error("Wrong port")
 		}
 
@@ -288,8 +309,12 @@ func TestServerWorkerTracking(t *testing.T) {
 			continue
 		}
 
+		if u.id != r.ID {
+			t.Errorf("Got id \"%s\" wanted: \"%s\"", r.ID, u.id)
+		}
+
 		if u.host != r.Host {
-			t.Errorf("Got host: \"%s\" wanted: %s", r.Host, u.host)
+			t.Errorf("Got host: \"%s\" wanted: \"%s\"", r.Host, u.host)
 		}
 
 		if u.port != r.Port {
@@ -328,12 +353,12 @@ func TestWorkerDrop(t *testing.T) {
 
 	// We block until we are able to find a worker, which means our connection
 	// was successful
-	var host string
+	var wr WorkerResponse
 
 	for {
 		var err error
 
-		host, _, _, err = s.sch.findWorker(clientAddrs)
+		wr, err = s.sch.findWorker(clientAddrs)
 
 		if err == nil {
 			break
@@ -341,7 +366,7 @@ func TestWorkerDrop(t *testing.T) {
 	}
 
 	// Make sure we have the right host back
-	if host != "smith" {
+	if wr.Host != "smith" {
 		t.Error("Bad worker")
 	}
 
@@ -352,7 +377,7 @@ func TestWorkerDrop(t *testing.T) {
 	for {
 		var err error
 
-		_, _, _, err = s.sch.findWorker(clientAddrs)
+		_, err = s.sch.findWorker(clientAddrs)
 
 		if err != nil {
 			break

@@ -14,9 +14,10 @@ import (
 )
 
 type Worker struct {
-	port  int    // Port we listen for connections on
-	saddr string // Port of the server (if it exists)
-	run   bool   // Should the update loop keep running?
+	port  int       // Port we listen for connections on
+	saddr string    // Port of the server (if it exists)
+	run   bool      // Should the update loop keep running?
+	id    MachineID // The ID of this worker
 }
 
 // NewWorker initializes a Worker struct based on the given server and
@@ -27,8 +28,9 @@ func NewWorker(port int, saddr string) (w *Worker, err error) {
 	w.saddr = saddr
 	w.run = true
 	w.port = port
+	w.id, err = GetMachineID()
 
-	return w, nil
+	return w, err
 }
 
 // Serve listens for incoming build requests connections and spawns
@@ -152,11 +154,13 @@ func (w *Worker) sendWorkerState(mc *MessageConn, host string, addrs []net.IPNet
 		load, err := GetLoadAverage()
 
 		if err != nil {
+			load = 0
 			log.Print("Error getting load: ", err)
 		}
 
 		// Update the state with the latest information
 		ws := WorkerState{
+			ID:       w.id,
 			Host:     host,
 			Addrs:    addrs,
 			Port:     w.port,
