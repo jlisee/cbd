@@ -1,5 +1,7 @@
 // This file contains all the routines used by the client process that stands
 // in for the compiler, and farms jobs out to workers.
+//
+// Author: Joseph Lisee <jlisee@gmail.com>
 
 package cbd
 
@@ -82,6 +84,9 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 func findWorker(server string) (address string, worker string, err error) {
 	DebugPrint("Finding worker server: ", server)
 
+	// Set a timeout for this entire process and just build locally
+	quittime := time.Now().Add(time.Duration(10) * time.Second)
+
 	// Connect to server
 	mc, err := NewTCPMessageConn(server, time.Duration(10)*time.Second)
 
@@ -112,11 +117,40 @@ func findWorker(server string) (address string, worker string, err error) {
 	}
 	mc.Send(rq)
 
-	// Read back our response
-	r, err := mc.ReadWorkerResponse()
+	// Wait until we get a valid worker response, or we timeout
+	var r WorkerResponse
+Loop:
+	for {
+		// Read back the latest from the server
+		r, err = mc.ReadWorkerResponse()
 
-	if err != nil {
-		return
+		// If there is an error talking bail out
+		if err != nil {
+			return
+		}
+
+		// Handle our response types
+		switch r.Type {
+		case Queued:
+			// Timeout if it's been too long
+			if time.Now().After(quittime) {
+				err = fmt.Errorf("Timed out waiting for a free worker")
+				return
+			} else {
+				DebugPrint("No workers available waiting...")
+			}
+		case NoWorkers:
+			// No workers present in cluster bail out
+			err = fmt.Errorf("No workers in cluster")
+			return
+		case Valid:
+			// We have useful information break out of the loop
+			break Loop
+		default:
+			// We don't understand this response type
+			err = fmt.Errorf("Unknown response type: ", r.Type)
+			return
+		}
 	}
 
 	address = r.Address.IP.String() + ":" + strconv.Itoa(r.Port)

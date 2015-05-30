@@ -1,3 +1,7 @@
+// Tests for server functionality.
+//
+// Author: Joseph Lisee <jlisee@gmail.com>
+
 package cbd
 
 import (
@@ -10,13 +14,18 @@ import (
 )
 
 type WorkerTestCase struct {
+	// Input data
 	update    WorkerState    // Update to apply
 	completed []CompletedJob // Compile jobs (applied after update)
-	host      string
-	port      int
-	empty     bool
-	error     bool        // True if we expect and error
-	addrs     []net.IPNet // Client IPs
+
+	// Control flags
+	empty bool // Means there is no worker state
+	error bool // True if we expect and error
+
+	// Successful results
+	host  string
+	port  int
+	addrs []net.IPNet // Client IPs
 }
 
 // A channel based deadline reader writer
@@ -235,7 +244,7 @@ func TestServerWorkerTracking(t *testing.T) {
 		}
 
 		// TODO: don't ignore address
-		host, _, port, err := s.findWorker(u.addrs)
+		host, _, port, err := s.sch.findWorker(u.addrs)
 
 		// Test one where expect nothing back
 		if u.error {
@@ -279,11 +288,11 @@ func TestServerWorkerTracking(t *testing.T) {
 			continue
 		}
 
-		if host != r.Host {
-			t.Errorf("Got host: \"%s\" wanted: %s", r.Host, host)
+		if u.host != r.Host {
+			t.Errorf("Got host: \"%s\" wanted: %s", r.Host, u.host)
 		}
 
-		if port != r.Port {
+		if u.port != r.Port {
 			t.Error("Wrong port")
 		}
 	}
@@ -324,7 +333,7 @@ func TestWorkerDrop(t *testing.T) {
 	for {
 		var err error
 
-		host, _, _, err = s.findWorker(clientAddrs)
+		host, _, _, err = s.sch.findWorker(clientAddrs)
 
 		if err == nil {
 			break
@@ -343,7 +352,7 @@ func TestWorkerDrop(t *testing.T) {
 	for {
 		var err error
 
-		_, _, _, err = s.findWorker(clientAddrs)
+		_, _, _, err = s.sch.findWorker(clientAddrs)
 
 		if err != nil {
 			break
@@ -354,3 +363,17 @@ func TestWorkerDrop(t *testing.T) {
 // TODO: test the compile speed update here
 
 // TODO: we should figure out how to test monitoring here
+
+// TODO: need a test for queue worker behavior somehow
+
+func TestWorkerQueue(t *testing.T) {
+	// Setup some busy workers
+
+	// Ask for a worker
+
+	// Make sure we get queued response back
+
+	// Free up a worker by finishing a job
+
+	// Make sure we now get back the worker we expect
+}

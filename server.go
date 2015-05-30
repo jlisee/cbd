@@ -5,13 +5,10 @@
 package cbd
 
 import (
-	"errors"
-	"fmt"
 	"log"
 	"net"
 	"reflect"
 	"sort"
-	"sync"
 	"time"
 )
 
@@ -28,10 +25,19 @@ type WorkerRequest struct {
 	Addrs  []net.IPNet // IP addresses of the client
 }
 
+type ResponseType int
+
+const (
+	Queued    ResponseType = iota // No data, we are queued
+	NoWorkers                     // No workers at all available
+	Valid                         // Valid response
+)
+
 type WorkerResponse struct {
-	Host    string    // Host of the worker
-	Address net.IPNet // IP address of the worker
-	Port    int       // Port the workers accepts connections on
+	Type    ResponseType // Is
+	Host    string       // Host of the worker
+	Address net.IPNet    // IP address of the worker
+	Port    int          // Port the workers accepts connections on
 }
 
 // WorkState represents the load and capacity of a worker
@@ -56,16 +62,14 @@ type WorkerStateList struct {
 // TODO: consider some kind of channel system instead of a mutex to get
 // sync access to these data structures.
 type ServerState struct {
-	workers map[string]WorkerState // All the currently active workers
-	wmutex  *sync.Mutex            // Protects access to workers map
+	sch Scheduler // Schedules jobs
 
 	monitorUpdates *updatePublisher // Sends to multiple channels completion information
 }
 
 func NewServerState() *ServerState {
 	s := new(ServerState)
-	s.workers = make(map[string]WorkerState)
-	s.wmutex = new(sync.Mutex)
+	s.sch = newFifoScheduler()
 	s.monitorUpdates = newUpdatePublisher()
 
 	return s
@@ -118,76 +122,17 @@ func (s *ServerState) updateWorker(u WorkerState) {
 	// more easily find matching ones in the future
 	sort.Sort(ByPrivateIPAddr(u.Addrs))
 
-	// Update the shared state
-	s.wmutex.Lock()
-	defer s.wmutex.Unlock()
-
-	// Keep the current speed if we already have an entry for this host
-	if val, ok := s.workers[u.Host]; ok {
-		speed := val.Speed
-		u.Speed = speed
-	}
-
-	s.workers[u.Host] = u
+	// Tell the scheduler about the worker
+	s.sch.updateWorker(u)
 }
 
 // Remove the worker from the current set of workers
 func (s *ServerState) removeWorker(h string) {
-	s.wmutex.Lock()
-	defer s.wmutex.Unlock()
-
-	delete(s.workers, h)
+	// Have the scheduler remove the worker
+	s.sch.removeWorker(h)
 }
 
 // func (s*ServerState) pruneStaleWorkers(h string)
-
-// findWorker finds a free worker which can connect to any of the given
-// addresses and return the corresponding address and port
-func (s *ServerState) findWorker(addrs []net.IPNet) (string, net.IPNet, int, error) {
-	// Error out if we aren't given any addresses to match against
-	var empty net.IPNet
-	if len(addrs) == 0 {
-		return "", empty, 0, errors.New("No source addresses given")
-	}
-
-	// Make sure we keep the worker state locked
-	s.wmutex.Lock()
-	defer s.wmutex.Unlock()
-
-	// Sort the worker IPs so will match local networks before global
-	sort.Sort(ByPrivateIPAddr(addrs))
-
-	// Found workers
-	var worker WorkerState
-	var addr net.IPNet
-
-	worker.Speed = -1
-	found := false
-
-	// For now just a simple linear search returning the first free
-	for _, wstate := range s.workers {
-		space := wstate.Capacity - wstate.Load
-
-		if space > 0 {
-			// Get a worker IP address that can connect to the client
-			maddr, err := getMatchingIP(addrs, wstate.Addrs)
-
-			// Use this worker if it's faster than the last
-			if err == nil && worker.Speed < wstate.Speed {
-				worker = wstate
-				addr = maddr
-				found = true
-			}
-		}
-	}
-
-	// Return the fastest found worker
-	if found {
-		return worker.Host, addr, worker.Port, nil
-	}
-
-	return "", empty, 0, errors.New("No available & reachable host")
-}
 
 // handleMessage decodes incoming messages
 func (s *ServerState) handleConnection(conn *MessageConn) {
@@ -272,20 +217,55 @@ func (s *ServerState) handleMonitorConnection(conn *MessageConn, h string, cin c
 // processWorkerRequest searches for an available worker and sends the
 // result back on the given connection.
 func (s *ServerState) processWorkerRequest(conn *MessageConn, req WorkerRequest) error {
-	// Find free worker
-	host, addr, port, err := s.findWorker(req.Addrs)
 
-	if err != nil {
-		return err
-	}
+	// Create a go routine waiting for our scheduling result
+	sreq := NewSchedulerRequest(req.Addrs)
 
-	// Send back result
-	r := WorkerResponse{
-		Host:    host,
-		Address: addr,
-		Port:    port,
-	}
-	return conn.Send(r)
+	errOut := make(chan error)
+
+	go func() {
+		var err error
+
+		// Keep telling the waiting client we are queued
+	Loop:
+		for {
+			// 1 second timeout
+			timeout := make(chan bool, 1)
+			go func() {
+				time.Sleep(1 * time.Second)
+				timeout <- true
+			}()
+
+			// Wait for timeouts, or requests
+			select {
+			case result := <-sreq.r:
+				// We got a result!, send it to the user
+				err = conn.Send(result)
+
+				// If it's valid break out of our loop
+				if result.Type == Valid {
+					break Loop
+				}
+
+			case <-timeout:
+				// the read from ch has timed, tell the user we have a queue result
+				err = conn.Send(WorkerResponse{Type: Queued})
+
+				// we hit an error break out of loop
+				if err != nil {
+					break Loop
+				}
+			}
+		}
+
+		errOut <- err
+	}()
+
+	// Schedule our request
+	s.sch.schedule(sreq)
+
+	// Wait for the scheduler to respond, and the message to send
+	return <-errOut
 }
 
 // Sends worker state to all monitoring programs
@@ -299,13 +279,7 @@ func (s *ServerState) sendWorkState(rate float64) error {
 
 		// Copy list into message
 		// TODO: maybe reduce copying here?
-		var l WorkerStateList
-
-		s.wmutex.Lock()
-		for _, state := range s.workers {
-			l.Workers = append(l.Workers, state)
-		}
-		s.wmutex.Unlock()
+		l := s.sch.getWorkerState()
 
 		// Send out update
 		s.monitorUpdates.updates <- l
@@ -313,27 +287,7 @@ func (s *ServerState) sendWorkState(rate float64) error {
 	}
 }
 
-// Updates the workers current speed estimate based on the job results, this
-// uses New = Old * 0.9 + Update * 0.1 to try and smooth out spikes caused by
-// variability.
+// Updates scheduler state based on completed job information
 func (s *ServerState) updateStats(cj CompletedJob) error {
-	s.wmutex.Lock()
-	defer s.wmutex.Unlock()
-
-	// Blend in the speed slowly if we already have a speed
-	state, ok := s.workers[cj.Worker]
-
-	if !ok {
-		return fmt.Errorf("Could not find worker: %s", cj.Worker)
-	}
-
-	if state.Speed == 0 {
-		state.Speed = cj.CompileSpeed
-	} else {
-		state.Speed = state.Speed*0.9 + cj.CompileSpeed*0.1
-	}
-
-	s.workers[cj.Worker] = state
-
-	return nil
+	return s.sch.completed(cj)
 }
