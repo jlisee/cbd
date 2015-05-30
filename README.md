@@ -58,13 +58,27 @@ will build the software and install the binaries on the GOPATH.
 Help full tools to have installed, goimports will automatically fix up imports,
 and can replace the usage of gofmt:
 
-  go get code.google.com/p/go.tools/cmd/goimports
+  go get -u code.google.com/p/go.tools/cmd/goimports
 
 godef will help look up definitions, it integrates with go-mode.el:
 
-  go get code.google.com/p/rog-go/exp/cmd/godef
+  go get -u code.google.com/p/rog-go/exp/cmd/godef
 
-TODO: maybe gocode as well?
+Emacs Specific, setup, get the main mode:
+
+  git clone https://github.com/dominikh/go-mode.el
+
+Get flymake support with goflymake for as you type error checking:
+
+  git clone https://github.com/dougm/goflymake
+
+  go get -u github.com/dougm/goflymake
+
+
+
+TODO: maybe gocode & oracle? as well?
+
+
 
 Environment Variables
 ======================
