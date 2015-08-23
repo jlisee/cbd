@@ -125,17 +125,17 @@ func (m *Monitor) BasicReport() error {
 			fmt.Printf("%s: finished job in: %.3fs (Speed: %.0f)\n", m.Worker,
 				m.CompileTime.Seconds(), m.CompileSpeed)
 
-		case WorkerStateList:
+		case ServerStateInfo:
 			// Final output
 			// id?  Preprocess/Compile    file.cpp                     server[core#]
 
-			fmt.Printf("[")
+			fmt.Printf("[Queued: %d][", len(m.Requests))
 			for _, state := range m.Workers {
 				// element is the element from someSlice for where we are
 				fmt.Printf("%s[%d|%d|%.0f] ", state.Host, state.Load,
 					state.Capacity, state.Speed)
 			}
-			fmt.Printf("]\n")
+			fmt.Printf("]]\n")
 
 		default:
 			fmt.Printf("ERROR, unknown message type: %s\n",

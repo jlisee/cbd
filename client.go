@@ -32,7 +32,7 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 	if len(address) == 0 && len(server) > 0 {
 		server = addPortIfNeeded(server, DefaultServerPort)
 
-		address, worker, err = findWorker(server)
+		address, worker, err = findWorker(server, id)
 
 		if err != nil {
 			log.Print("Find worker error: ", err)
@@ -94,7 +94,7 @@ func ClientBuildJob(job CompileJob) (cresults CompileResult, err error) {
 }
 
 // findWorker uses a central server to find the desired worker
-func findWorker(server string) (address string, worker MachineName, err error) {
+func findWorker(server string, id MachineID) (address string, worker MachineName, err error) {
 	DebugPrint("Finding worker server: ", server)
 
 	// Set a timeout for this entire process and just build locally
@@ -125,8 +125,11 @@ func findWorker(server string) (address string, worker MachineName, err error) {
 
 	// Send our request
 	rq := WorkerRequest{
-		Client: hostname,
-		Addrs:  addrs,
+		Client: MachineName{
+			ID:   id,
+			Host: hostname,
+		},
+		Addrs: addrs,
 	}
 	mc.Send(rq)
 

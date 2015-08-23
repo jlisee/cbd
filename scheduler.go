@@ -12,7 +12,14 @@ import (
 	"net"
 	"sort"
 	"sync"
+	"time"
 )
+
+// Base info about a scheduler request
+type RequestInfo struct {
+	requester MachineName // The client making the request
+	rt        time.Time   // When the request was made
+}
 
 // The information needed
 type SchedulerRequest struct {
@@ -20,14 +27,19 @@ type SchedulerRequest struct {
 	addrs  []net.IPNet         // Addresses of the client
 	guid   GUID                // Unique ID for this request, used to cancel
 	active bool                // False when the request has been canceled
+	info   RequestInfo         // Metadata about the request
 }
 
-func NewSchedulerRequest(addrs []net.IPNet) *SchedulerRequest {
+func NewSchedulerRequest(requester MachineName, addrs []net.IPNet) *SchedulerRequest {
 	req := new(SchedulerRequest)
 	req.r = make(chan WorkerResponse, 1)
 	req.addrs = addrs
 	req.guid = NewGUID()
 	req.active = true
+	req.info = RequestInfo{
+		requester: requester,
+		rt:        time.Now(),
+	}
 
 	return req
 }
@@ -52,13 +64,11 @@ type Scheduler interface {
 	// Remove resource
 	removeWorker(id MachineID) error
 
-	// Get current work state
-	getWorkerState() WorkerStateList
+	// Get information about the workers & queued requests
+	getStateInfo() ServerStateInfo
 
 	/// TODO: figure out a way to remove me, this is just a test function
 	findWorker(addrs []net.IPNet) (WorkerResponse, error)
-
-	// TODO: something to dump current queue information
 }
 
 type FifoScheduler struct {
@@ -178,19 +188,23 @@ func (s *FifoScheduler) removeWorker(id MachineID) error {
 	return nil
 }
 
-func (s *FifoScheduler) getWorkerState() WorkerStateList {
+func (s *FifoScheduler) getStateInfo() ServerStateInfo {
 	s.smutex.Lock()
 	defer s.smutex.Unlock()
 
 	// Copy all state into our list
 	// TODO: maintain single a list that is just updated instead
-	var l WorkerStateList
+	var si ServerStateInfo
 
 	for _, state := range s.workers {
-		l.Workers = append(l.Workers, state)
+		si.Workers = append(si.Workers, state)
 	}
 
-	return l
+	for _, req := range s.requests {
+		si.Requests = append(si.Requests, req.info)
+	}
+
+	return si
 }
 
 /// TODO: remove me just an internal test function

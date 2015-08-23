@@ -30,8 +30,9 @@ func TestScheduler(t *testing.T) {
 	sch = newFifoScheduler()
 
 	// Start by schedule something when we have no workers
+	name := MachineName{ID: "1:2:3", Host: "A"}
 	addrs := []net.IPNet{{net.IPv4(192, 1, 1, 3), net.IPv4Mask(255, 255, 255, 0)}}
-	sreq := NewSchedulerRequest(addrs)
+	sreq := NewSchedulerRequest(name, addrs)
 
 	err := sch.schedule(sreq)
 
@@ -72,7 +73,7 @@ func TestScheduler(t *testing.T) {
 	sch.addWorker(foo)
 
 	// Schedule a new request asking for a worker
-	sreq = NewSchedulerRequest(addrs)
+	sreq = NewSchedulerRequest(name, addrs)
 
 	err = sch.schedule(sreq)
 
@@ -108,7 +109,7 @@ func TestScheduler(t *testing.T) {
 
 	sch.updateWorker(foo)
 
-	sreq = NewSchedulerRequest(addrs)
+	sreq = NewSchedulerRequest(name, addrs)
 
 	err = sch.schedule(sreq)
 
