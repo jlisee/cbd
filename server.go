@@ -21,7 +21,7 @@ type MonitorRequest struct {
 // WorkerRequest is sent from the client to the server in order to find
 // a worker to process a job
 type WorkerRequest struct {
-	Client string      // Host request a worker
+	Client MachineName // Requesting worker
 	Addrs  []net.IPNet // IP addresses of the client
 }
 
@@ -54,9 +54,10 @@ type WorkerState struct {
 	Speed    float64     // The speed of the worker, computed on the server
 }
 
-// List of all currently active works
-type WorkerStateList struct {
-	Workers []WorkerState
+// Basic dump of internal state used for monitoring
+type ServerStateInfo struct {
+	Workers  []WorkerState // List of all currently active workers
+	Requests []RequestInfo // Information about all the queued requests
 }
 
 // ServerState is all the state of our server
@@ -220,7 +221,7 @@ func (s *ServerState) handleMonitorConnection(conn *MessageConn, h string, cin c
 func (s *ServerState) processWorkerRequest(conn *MessageConn, req WorkerRequest) error {
 
 	// Create a go routine waiting for our scheduling result
-	sreq := NewSchedulerRequest(req.Addrs)
+	sreq := NewSchedulerRequest(req.Client, req.Addrs)
 
 	errOut := make(chan error)
 
@@ -283,15 +284,14 @@ func (s *ServerState) sendWorkState(rate float64) error {
 	d := time.Duration(int64(msSleep)) * time.Millisecond
 
 	for {
-		time.Sleep(d)
-
 		// Copy list into message
 		// TODO: maybe reduce copying here?
-		l := s.sch.getWorkerState()
+		si := s.sch.getStateInfo()
 
 		// Send out update
-		s.monitorUpdates.updates <- l
+		s.monitorUpdates.updates <- si
 
+		time.Sleep(d)
 	}
 }
 
