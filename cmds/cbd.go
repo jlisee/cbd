@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
 	"time"
 
@@ -293,6 +294,15 @@ func runCompiler(compiler string, args []string) {
 		cbd.DebugPrint("Remote Success")
 
 	} else {
+		// Error out if our program does not exist
+		_, err := exec.LookPath(compiler)
+
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		// Run our command
 		results, err := cbd.RunCmd(compiler, args)
 
 		if err != nil {
