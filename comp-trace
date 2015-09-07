@@ -1,0 +1,75 @@
+#! /usr/bin/env python
+
+import os
+import sys
+import time
+import shutil
+
+__doc__ = """
+The saves the input source files and commands of a compiler.
+
+Create a symlink which will be used in place of a compiler like gcc or g++, and
+put it on the path in front of the real compiler.  Then set the
+CBD_COMP_TRACE_DIR environment variable to point to the directory where you
+want results saved.  Each invocation will have a set of files saved starting
+with the time of the invocation.
+"""
+
+__author__ = 'Joseph Lisee <jlisee@gmail.com>'
+
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+
+    cmd_path = get_cmd_path(argv)
+
+    final_argv = [cmd_path] + argv[1:]
+
+    # Get the directory we are going to log in
+    if 'CBD_COMP_TRACE_DIR' in os.environ:
+        trace_dir = os.environ['CBD_COMP_TRACE_DIR']
+
+        now = time.time()
+
+        if not os.path.exists(trace_dir):
+            os.makedirs(trace_dir)
+
+        # Save the output files so we can re-run things if we need to
+        for arg in argv:
+            filename = os.path.split(arg)[-1]
+            ext = os.path.splitext(filename)[-1]
+            if ext in ['.c', '.cc', '.cxx', '.cpp', '.c++']:
+                dest_name = '%.5f.%s' % (now, filename)
+                if os.path.exists(arg):
+                    shutil.copy(arg, os.path.join(trace_dir, dest_name))
+
+        # Now log the command
+        cmd_file = os.path.join(trace_dir, '%.5f.cmd' % now) 
+        with open(cmd_file, 'w') as f:
+            f.write(' '.join(argv) + '\n')
+
+        # Log what we are actually going to run
+        with open(cmd_file, 'a') as f:
+            f.write('\n' + ' '.join(final_argv) + '\n')
+
+    # Now run it
+    os.execv(cmd_path, final_argv)
+
+def get_cmd_path(argv):
+    # Get the command we are really supposed to be
+    cmd = os.path.split(argv[0])[-1]
+
+    if cmd.count('-'):
+        cmd = cmd.split('-')[-1]
+
+    # Do our own version of which, that ignores us
+    for path in os.environ["PATH"].split(os.pathsep):
+        candidate = os.path.join(path, cmd)
+        if os.path.exists(candidate) and candidate != __file__:
+            cmd_path = candidate
+            break
+
+    return cmd_path
+
+if __name__ == '__main__':
+    sys.exit(main())
