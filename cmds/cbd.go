@@ -291,8 +291,9 @@ func runCompiler(compiler string, args []string) {
 		// See if we have a remote host defined
 		cresults, err := cbd.ClientBuildJob(job)
 
+		fmt.Print(string(cresults.Output))
+
 		if err != nil || cresults.Return != 0 {
-			fmt.Print(string(cresults.Output))
 			cbd.DebugPrint("Build Error: ", string(cresults.Output))
 			os.Exit(cresults.Return)
 		}
@@ -327,12 +328,13 @@ func runCompiler(compiler string, args []string) {
 		results, err := cbd.RunCmd(compiler, args)
 
 		if err != nil {
-			fmt.Print(string(results.Output))
 			cbd.DebugPrint("Local Error: ", string(results.Output))
-			os.Exit(results.Return)
+		} else {
+			cbd.DebugPrint("Success")
 		}
 
-		cbd.DebugPrint("Success")
+		// Print output and exit with the same return code
+		fmt.Print(string(results.Output))
+		os.Exit(results.Return)
 	}
-
 }

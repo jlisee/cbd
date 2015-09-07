@@ -78,6 +78,16 @@ if [ "$cbd_pid" != "" ]; then
     exit 1
 fi
 
+# ----------------------------------------------------------------------------
+# Make sure we still get the output of the compiler
+# ----------------------------------------------------------------------------
+
+version=$(cbd gcc --version)
+
+if [ "${#version}" == "0" ]; then
+    echo "Error: no compiler version output."
+    exit 1
+fi
 
 # ----------------------------------------------------------------------------
 # Local tests
