@@ -79,8 +79,14 @@ func ParseArgs(args []string) Build {
 
 	haveMF := false
 	haveM := false
+	skipNext := false
 
 	for i, arg := range args {
+		if skipNext {
+			skipNext = false
+			continue
+		}
+
 		// Dependency generation flag
 		//   -MD, -MMD, -MP, -MG args we just ignore out right
 		//   -MT & -MQ ignore then & the NEXT arg (their argument)
@@ -102,13 +108,16 @@ func ParseArgs(args []string) Build {
 		} else if arg == "-MT" {
 			ignIndex = append(ignIndex, i)
 			ignIndex = append(ignIndex, i+1)
+			skipNext = true
 		} else if arg == "-MQ" {
 			ignIndex = append(ignIndex, i)
 			ignIndex = append(ignIndex, i+1)
+			skipNext = true
 		} else if arg == "-MF" {
 			haveMF = true
 			ignIndex = append(ignIndex, i)
 			ignIndex = append(ignIndex, i+1)
+			skipNext = true
 		}
 
 		// More normal arguments
@@ -119,6 +128,14 @@ func ParseArgs(args []string) Build {
 		} else if arg == "-o" {
 			// Find the output file
 			outputIndex = i + 1
+		} else if arg[0] == '-' && (len(arg) > 1 && arg[1] == 'I') {
+			ignIndex = append(ignIndex, i)
+
+			// If we are of the form "-I path", we need to ignore the next arg too
+			if len(arg) == 2 {
+				ignIndex = append(ignIndex, i+1)
+				skipNext = true
+			}
 		} else if (arg[0] != '-') && (outputIndex != i) {
 			// For now assume any non flag argument, not the -o target
 			// is our Build flag

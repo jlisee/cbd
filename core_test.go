@@ -53,6 +53,27 @@ func TestParseArgs(t *testing.T) {
 				Distributable: false,
 			},
 		},
+		// Include files
+		ParseTestCase{
+			inputArgs: []string{"-c", "data/main.c", "-o", "main.o", "-Iinclude"},
+			b: Build{
+				Oindex:        3,
+				Iindex:        1,
+				Cindex:        0,
+				IgnoreIndex:   []int{4},
+				Distributable: true,
+			},
+		},
+		ParseTestCase{
+			inputArgs: []string{"-c", "data/main.c", "-o", "main.o", "-I", "include"},
+			b: Build{
+				Oindex:        3,
+				Iindex:        1,
+				Cindex:        0,
+				IgnoreIndex:   []int{4, 5},
+				Distributable: true,
+			},
+		},
 		// Dependency generation
 		ParseTestCase{
 			inputArgs: []string{"-MMD", "-MT", "main.c.o", "-MF", "main.c.o.d", "-c", "data/main.c", "-o", "main.o"},
