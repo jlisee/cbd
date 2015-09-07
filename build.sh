@@ -38,6 +38,9 @@ function build() {
     mkdir -p $DESTDIR
     mv cbd $DESTDIR
 
+    ln -sf cbd $DESTDIR/cbd-g++
+    ln -sf cbd $DESTDIR/cbd-gcc
+
     local end=$(date +%s.%N)
 
     local dur=$(echo "scale=3; ($end - $start)/1" | bc)

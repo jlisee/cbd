@@ -95,10 +95,27 @@ checkout # Test the output
 # Clean up
 clean_up
 
+# ----------------------------------------------------------------------------
+# Make sure symlinks work
+# ----------------------------------------------------------------------------
+
+# The compile the program
+disp "[Name symlink test]"
+
+export CBD_POTENTIAL_HOST=''
+
+cbd-gcc -c data/main.c -o main.o
+cbd-gcc main.o -o test-main
+checkout # Test the output
+
+# Clean up
+clean_up
 
 # ----------------------------------------------------------------------------
 # Make sure logging works!
 # ----------------------------------------------------------------------------
+
+disp "[Logging test]"
 
 TMPLOGDIR=`mktemp -d`
 export CBD_LOGFILE=$TMPLOGDIR/cbd.log

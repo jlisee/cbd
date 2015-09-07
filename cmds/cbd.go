@@ -7,7 +7,9 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jlisee/cbd"
@@ -134,12 +136,31 @@ func main() {
 
 	// Grab our command then Shift the args down one, to ignore the first
 	// command, if we don't do this the flag package basically ignores all
-	// arguments
-	if len(os.Args) > 1 {
-		command = os.Args[1]
+	// arguments. We also detect if we are using the executable name to
+	// tell us the command.
+	var exe string
 
-		if len(os.Args) > 1 {
-			os.Args = os.Args[1:]
+	if len(os.Args) > 1 {
+		exe = path.Base(os.Args[0])
+
+		if exe == "cbd" {
+			command = os.Args[1]
+
+			if len(os.Args) > 1 {
+				os.Args = os.Args[1:]
+			}
+		} else {
+			// We have a custom executable name which are using to pass
+			// in what program we really want to run. We only except cbd-program
+			// so parse that out and error out otherwise.
+
+			if strings.HasPrefix(exe, "cbd-") {
+				command = exe[4:]
+			} else {
+				fmt.Printf("Invalid executable name: \"%s\" should be of the form \"cbd-%s\".\n",
+					exe, exe)
+				os.Exit(1)
+			}
 		}
 	}
 
