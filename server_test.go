@@ -389,16 +389,4 @@ func TestWorkerDrop(t *testing.T) {
 
 // TODO: we should figure out how to test monitoring here
 
-// TODO: need a test for queue worker behavior somehow
-
-func TestWorkerQueue(t *testing.T) {
-	// Setup some busy workers
-
-	// Ask for a worker
-
-	// Make sure we get queued response back
-
-	// Free up a worker by finishing a job
-
-	// Make sure we now get back the worker we expect
-}
+// NOTE: scheduler tested separately

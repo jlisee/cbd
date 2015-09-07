@@ -141,7 +141,7 @@ func TestScheduler(t *testing.T) {
 
 	select {
 	case res = <-sreq.r:
-		t.Errorf("Got message we should not of: ", res)
+		t.Error("Got message we should not of:", res)
 	default:
 		// Valid things are ok
 	}
