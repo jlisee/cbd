@@ -30,6 +30,7 @@ type Build struct {
 	Oindex        int      // Index of argument *before* the output file
 	Iindex        int      // Index of input file option
 	Cindex        int      // Index of "type" flag
+	IgnoreIndex   []int    // Index of args not to be used for remote compilation
 	Distributable bool     // A job we can distribute
 	// TODO: file type
 }
@@ -74,14 +75,49 @@ func ParseArgs(args []string) Build {
 	outputIndex := -1
 	inputIndex := -1
 	cmdIndex := -1
+	ignIndex := make([]int, 0)
+
+	haveMF := false
+	haveM := false
 
 	for i, arg := range args {
-		//idx := i + 1
+		// Dependency generation flag
+		//   -MD, -MMD, -MP, -MG args we just ignore out right
+		//   -MT & -MQ ignore then & the NEXT arg (their argument)
+		//   -MM & -M mean to generate dependency data, and stop distribution UNLESS we have MF
+		if arg == "-M" {
+			haveM = true
+			ignIndex = append(ignIndex, i)
+		} else if arg == "-MM" {
+			haveM = true
+			ignIndex = append(ignIndex, i)
+		} else if arg == "-MD" {
+			ignIndex = append(ignIndex, i)
+		} else if arg == "-MMD" {
+			ignIndex = append(ignIndex, i)
+		} else if arg == "-MP" {
+			ignIndex = append(ignIndex, i)
+		} else if arg == "-MG" {
+			ignIndex = append(ignIndex, i)
+		} else if arg == "-MT" {
+			ignIndex = append(ignIndex, i)
+			ignIndex = append(ignIndex, i+1)
+		} else if arg == "-MQ" {
+			ignIndex = append(ignIndex, i)
+			ignIndex = append(ignIndex, i+1)
+		} else if arg == "-MF" {
+			haveMF = true
+			ignIndex = append(ignIndex, i)
+			ignIndex = append(ignIndex, i+1)
+		}
+
+		// More normal arguments
 		if arg == "-c" {
+			// Find the input file
 			distributable = true
 			cmdIndex = i
-		}
-		if arg == "-o" {
+		} else if arg == "-o" {
+			// Find the output file
 			outputIndex = i + 1
 		} else if (arg[0] != '-') && (outputIndex != i) {
 			// For now assume any non flag argument, not the -o target
@@ -90,11 +126,17 @@ func ParseArgs(args []string) Build {
 		}
 	}
 
+	// If we are generating dependency data files don't distribute that work
+	if haveM && !haveMF {
+		distributable = false
+	}
+
 	b := Build{
 		Args:          args,
 		Oindex:        outputIndex,
 		Iindex:        inputIndex,
 		Cindex:        cmdIndex,
+		IgnoreIndex:   ignIndex,
 		Distributable: distributable,
 	}
 
@@ -127,6 +169,7 @@ func Preprocess(compiler string, b Build) (resultPath string, result ExecResult,
 	gccArgs[b.Cindex] = "-E"
 
 	// Run gcc with the rest of our args
+	DebugPrint("PREPROCESS: ", compiler, " ", gccArgs)
 	result, err = RunCmd(compiler, gccArgs)
 
 	if err != nil {
@@ -158,17 +201,36 @@ func Compile(compiler string, b Build, input string) (resultPath string, result 
 		return
 	}
 
-	// Update the arguments to point the output path to the temp directory and
-	// the input path from the given location
-	gccArgs := make([]string, len(b.Args))
+	// Generate our compile job arguments, updating the output path to the temp
+	// directory and the input path from the given location, and leaving out any
+	// arguments we are supposed to ignore in remote compiles (Like generate
+	// dependency files)
+	gccArgs := make([]string, 0, len(b.Args))
 
-	copy(gccArgs, b.Args)
+	for i, arg := range b.Args {
+		if i == b.Oindex {
+			gccArgs = append(gccArgs, tempPath)
+		} else if i == b.Iindex {
+			gccArgs = append(gccArgs, input)
+		} else {
+			// Try and find the index in the ignore list
+			use := true
 
-	gccArgs[b.Oindex] = tempPath
-	gccArgs[b.Iindex] = input
+			for _, ii := range b.IgnoreIndex {
+				if ii == i {
+					use = false
+				}
+			}
+
+			// Only use args not in the ignore list
+			if use {
+				gccArgs = append(gccArgs, arg)
+			}
+		}
+	}
 
 	// Run gcc with the rest of our args
-	// TODO: always include error output no matter what, needed for debugging
+	DebugPrint("COMPILE: ", compiler, " ", gccArgs)
 	result, err = RunCmd(compiler, gccArgs)
 
 	if err != nil {

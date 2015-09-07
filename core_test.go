@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -30,22 +31,37 @@ type ParseTestCase struct {
 func TestParseArgs(t *testing.T) {
 	// Note args is left out of the Build struct because it supplied separately
 	testData := []ParseTestCase{
+		// Base case
 		ParseTestCase{
 			inputArgs: []string{"-c", "data/main.c", "-o", "main.o"},
 			b: Build{
 				Oindex:        3,
 				Iindex:        1,
 				Cindex:        0,
+				IgnoreIndex:   []int{},
 				Distributable: true,
 			},
 		},
+		// No recognized args
 		ParseTestCase{
 			inputArgs: []string{"-dumpversion"},
 			b: Build{
 				Oindex:        -1,
 				Iindex:        -1,
 				Cindex:        -1,
+				IgnoreIndex:   []int{},
 				Distributable: false,
+			},
+		},
+		// Dependency generation
+		ParseTestCase{
+			inputArgs: []string{"-MMD", "-MT", "main.c.o", "-MF", "main.c.o.d", "-c", "data/main.c", "-o", "main.o"},
+			b: Build{
+				Oindex:        8,
+				Iindex:        6,
+				Cindex:        5,
+				IgnoreIndex:   []int{0, 1, 2, 3, 4},
+				Distributable: true,
 			},
 		},
 	}
@@ -64,27 +80,9 @@ func TestParseArgs(t *testing.T) {
 			t.Errorf("Args are wrong")
 		}
 
-		// Make sure we parsed the output properly
-		if eb.Output() != b.Output() {
-			t.Errorf("Output path wrong")
-		}
-
-		if eb.Oindex != b.Oindex {
-			t.Errorf("Output index wrong")
-		}
-
-		// Now lets do the input
-		if eb.Iindex != b.Iindex {
-			t.Errorf("Input index wrong")
-		}
-
-		if eb.Input() != b.Input() {
-			t.Errorf("Input path wrong")
-		}
-
-		// Now lets test the link command is properly recognized
-		if eb.Distributable != b.Distributable {
-			t.Errorf("Should not be b a link command")
+		// Make sure the rest of the structure matched
+		if !reflect.DeepEqual(eb, b) {
+			t.Errorf("Wrong build, wanted:\n %+v got:\n %+v", eb, b)
 		}
 	}
 }
